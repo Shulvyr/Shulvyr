@@ -1,0 +1,19 @@
+# Local plans, research and generated bundles
+/work/
+/outputs/
+
+# Future engine build output and local runtime data
+/.zig-cache/
+/zig-cache/
+/zig-out/
+/runtime/
+/worlds/
+/backups/
+/captures/
+/secrets/
+/node_modules/
+
+# Local credentials/configuration
+.env
+.env.*
+!.env.example
