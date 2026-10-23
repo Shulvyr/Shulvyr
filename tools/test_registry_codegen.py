@@ -10,6 +10,50 @@ import generate_registries as generator
 
 
 class RegistryCodegenTest(unittest.TestCase):
+    def test_registry_inputs_accept_another_source_without_network_access(self):
+        manifest, files = generator.load_inputs(generator.ROOT)
+        manifest["source"] = {
+            "repository": "https://example.invalid/owned/bedrock-data",
+            "branch": "data/client-snapshot",
+            "revision": "1" * 40,
+            "license": "CC0-1.0",
+        }
+        with tempfile.TemporaryDirectory(prefix="shulvyr-owned-inputs-") as temporary:
+            root = Path(temporary)
+            directory = root / "data/bedrock"
+            directory.mkdir(parents=True)
+            for name, data in files.items():
+                (directory / name).write_bytes(data)
+            (directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            verified, actual = generator.load_inputs(root)
+            self.assertEqual(files, actual)
+            generated = generator.render(verified, actual, "synthetic-generator-hash").decode()
+            self.assertIn('.repository = "https://example.invalid/owned/bedrock-data"', generated)
+            self.assertIn('.branch = "data/client-snapshot"', generated)
+
+    def test_source_replacement_still_requires_safe_pinned_provenance(self):
+        source = {
+            "repository": "https://example.invalid/owned/data",
+            "branch": "main",
+            "revision": "1" * 40,
+            "license": "CC0-1.0",
+        }
+        for field, value in (
+            ("repository", "http://example.invalid/owned/data"),
+            ("repository", 'https://example.invalid/owned/"\\\n'),
+            ("repository", "https://token@example.invalid/owned/data"),
+            ("repository", "https://example.invalid/owned/data?token=secret"),
+            ("repository", "https://example.invalid/" + "a" * 2048),
+            ("branch", 'main"'), ("branch", "main\n"), ("branch", ""),
+            ("branch", "a" * 257), ("revision", "main"),
+            ("revision", "A" * 40), ("license", "unknown"), ("branch", 1),
+        ):
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                generator.validate_source({**source, field: value})
+        for value in (None, [], {}, {**source, "extra": "unexpected"}):
+            with self.assertRaises(ValueError):
+                generator.validate_source(value)
+
     def test_state_metadata_schema_preserves_signed_i32_values(self):
         self.assertEqual([-(2**31), 0, 509, 2**31 - 1], generator.parse_metadata([-(2**31), 0, 509, 2**31 - 1]))
         for value in ({}, [True], [1.0], ["1"], [-(2**31)-1], [2**31]):

@@ -94,19 +94,27 @@ def parse_metadata(data) -> list[int]:
     return [integer(value, -(2**31), 2**31 - 1) for value in data]
 
 
+def validate_source(source) -> None:
+    if not isinstance(source, dict) or set(source) != {"repository", "branch", "revision", "license"}:
+        raise ValueError("Registry source requires complete provenance")
+    if not all(isinstance(value, str) for value in source.values()):
+        raise ValueError("Registry source fields must be strings")
+    # Metadata is emitted into Zig string literals. Accept bounded ASCII Git
+    # provenance without tying the local input format to one organization.
+    if (len(source["repository"]) > 2048
+            or not re.fullmatch(r"https://[A-Za-z0-9.-]+(?:/[A-Za-z0-9._~-]+)+", source["repository"])
+            or not re.fullmatch(r"[A-Za-z0-9._/-]{1,256}", source["branch"])
+            or not re.fullmatch(r"[0-9a-f]{40}", source["revision"])
+            or source["license"] != "CC0-1.0"):
+        raise ValueError("Registry source requires pinned HTTPS Git provenance and CC0-1.0 data")
+
+
 def load_inputs(root: Path) -> tuple[dict, dict]:
     directory = root / "data/bedrock"
     manifest = read_json((directory / "manifest.json").read_bytes())
     if set(manifest) != {"schema", "source", "files"} or manifest["schema"] != 1:
         raise ValueError("Unsupported registry manifest schema")
-    source = manifest["source"]
-    if source != {
-        "repository": "https://github.com/axolotl-pm/BedrockData",
-        "branch": "master",
-        "revision": source.get("revision"),
-        "license": "CC0-1.0",
-    } or not re.fullmatch(r"[0-9a-f]{40}", source["revision"]):
-        raise ValueError("Registry source requires a pinned BedrockData revision")
+    validate_source(manifest["source"])
     if set(manifest["files"]) != INPUTS:
         raise ValueError("Registry manifest has missing or unexpected files")
     files = {}

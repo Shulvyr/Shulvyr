@@ -70,6 +70,13 @@ entry limits bound development-time input processing. It sorts keys and builds
 a complete numeric lookup index. Output includes the source revision and
 generator hash. Reordering JSON objects leaves the generated tables identical.
 
+The local schema is independent of the data supplier. A replacement source can
+provide the same six input files with a pinned HTTPS Git origin, branch, revision,
+CC0-1.0 license and exact byte hashes. Changing suppliers does not change the
+registry APIs. This does not extract fresh data from a game client. That import
+tooling remains to be implemented. Preserve the recorded origin of existing
+snapshots and review new data before replacing them.
+
 The Zig compiler independently validates sorted unique keys, numeric ranges
 and a complete permutation of network mappings. Compile-contract tests check
 these failures using the pinned compiler. Runtime tests cover fixed dictionary
@@ -107,7 +114,7 @@ zig build check-fixtures --summary all
 zig build test --summary all
 ```
 
-When updating data, resolve the latest upstream default branch, review schema
+When updating data, select a source and resolve its latest default branch, review schema
 and version changes, replace the exact input blobs and update their manifest.
 Regenerate, inspect the diff and run the checks before selecting the new
 snapshot for any protocol or persistence adapter.

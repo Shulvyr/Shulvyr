@@ -41,6 +41,8 @@ Shulvyr owns its server, protocol and gameplay implementations. Reference
 projects provide behavior evidence and frozen test data. Building the default
 server does not fetch or run those projects. Their development stopping must
 not determine Shulvyr's ability to build or maintain its own behavior.
+See [dependency boundaries and recovery gaps](dependencies.md) for the current
+data, oracle, native-backend and maintenance-tool dependencies.
 
 Use Zig for new first-party maintenance tools. `zig build check-fixtures` checks
 all committed oracle fixtures without Python or PHP. It verifies provenance,
