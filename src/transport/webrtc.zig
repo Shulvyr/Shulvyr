@@ -57,6 +57,9 @@ pub fn Peer(comptime receive_capacity: usize, comptime discovery_capacity: usize
         last_ns: u64 = 0,
         local_set: bool = false,
         remote_set: bool = false,
+        local_fingerprint: ?[32]u8 = null,
+        local_certificate_before: i64 = 0,
+        local_certificate_after: i64 = 0,
 
         /// Successful bind moves the sink/finalizer into the manager before any
         /// native object exists. Even a later failed start needs finalization.
@@ -115,17 +118,43 @@ pub fn Peer(comptime receive_capacity: usize, comptime discovery_capacity: usize
         pub fn start(self: *Self, role: Role, bind_address: ?[:0]const u8) !void {
             if (self.phase.load(.acquire) != .bound) return error.NotBound;
             if (self.node_phase.* != .negotiating) return error.Closed;
+            var certificate = try core.DtlsCertificate.generate(self.io, .{ .now = std.Io.Clock.real.now(self.io).toSeconds() });
+            defer certificate.deinit();
+            try self.startWithCertificate(role, bind_address, &certificate);
+        }
+
+        /// Imports a borrowed, live certificate synchronously. The native
+        /// constructor copies both PEM strings and loads the pair before return.
+        /// The caller may clear its certificate after this call. Native copies
+        /// remain private until manager-driven peer deletion.
+        pub fn startWithCertificate(self: *Self, role: Role, bind_address: ?[:0]const u8, certificate: *const core.DtlsCertificate) !void {
+            if (self.phase.load(.acquire) != .bound) return error.NotBound;
+            if (self.node_phase.* != .negotiating) return error.Closed;
+            if (self.overlapsStorage(std.mem.asBytes(certificate))) return error.AliasedBuffer;
             if (bind_address) |address| {
                 if (std.mem.indexOfScalar(u8, address, 0) != null) return error.EmbeddedNull;
             }
+            try certificate.validateTime(std.Io.Clock.real.now(self.io).toSeconds());
+            const fingerprint = try certificate.fingerprint();
+            var certificate_buffer: [core.DtlsCertificate.max_certificate_pem_bytes]u8 = undefined;
+            var key_buffer: [core.DtlsCertificate.max_private_key_pem_bytes]u8 = undefined;
+            defer std.crypto.secureZero(u8, &key_buffer);
+            const certificate_pem = try certificate.writeCertificatePem(&certificate_buffer);
+            const key_pem = try certificate.writePrivateKeyPem(&key_buffer);
             self.phase.store(.starting, .release);
             errdefer self.stop(.native_call, .delivery_failure);
             var config = std.mem.zeroes(c.rtcConfiguration);
             config.bindAddress = if (bind_address) |address| address.ptr else null;
             config.disableAutoNegotiation = true;
             config.maxMessageSize = @intCast(self.native_message_bytes);
-            self.peer = c.rtcCreatePeerConnection(&config);
-            try check(self.peer);
+            config.certificatePemFile = certificate_pem.ptr;
+            config.keyPemFile = key_pem.ptr;
+            const created = c.rtcCreatePeerConnection(&config);
+            try check(created);
+            self.peer = created;
+            self.local_fingerprint = fingerprint;
+            self.local_certificate_before = certificate.not_before;
+            self.local_certificate_after = certificate.not_after;
             c.rtcSetUserPointer(self.peer, self);
             try check(c.rtcSetDataChannelCallback(self.peer, incoming));
             try check(c.rtcSetGatheringStateChangeCallback(self.peer, gathering));
@@ -332,6 +361,9 @@ pub fn Peer(comptime receive_capacity: usize, comptime discovery_capacity: usize
             try self.ownerLive();
             if (self.overlapsStorage(output)) return error.AliasedBuffer;
             if (!self.gathering_done.load(.acquire)) return error.NotGathered;
+            const now = std.Io.Clock.real.now(self.io).toSeconds();
+            if (now < self.local_certificate_before) return error.CertificateNotYetValid;
+            if (now > self.local_certificate_after) return error.CertificateExpired;
             if (output.len == 0 or output.len > std.math.maxInt(c_int)) return error.InvalidBuffer;
             const needed = c.rtcGetLocalDescription(self.peer, null, 0);
             try check(needed);
@@ -340,7 +372,31 @@ pub fn Peer(comptime receive_capacity: usize, comptime discovery_capacity: usize
             const count = c.rtcGetLocalDescription(self.peer, output.ptr, @intCast(output.len));
             try check(count);
             if (count != needed or output[@intCast(count - 1)] != 0) return error.InvalidNativeDescription;
-            return output[0..@intCast(count - 1) :0];
+            const text = output[0..@intCast(count - 1) :0];
+            var lines: [core.SessionDescription.max_lines][]const u8 = undefined;
+            const description = try core.SessionDescription.parse(text, &lines, .{ .text_bytes = self.config.max_description_bytes, .line_bytes = self.config.max_description_bytes });
+            try core.CertificateBinding.validate(&description, self.local_fingerprint orelse return error.UnboundCertificate);
+            return text;
+        }
+
+        /// Fetches and validates this peer's actual gathered local SDP before
+        /// issuing the operator assertion. Never accepts an arbitrary local SDP.
+        /// Failure preserves output. Workspace may change and contains ICE
+        /// credentials. Both buffers and the operator key remain caller-owned.
+        pub fn writeSignedLocalDescription(self: *Self, key: *const core.OperatorKey, output: []u8, workspace: []u8, parameters: core.IdentityIssuer.Parameters, limits: core.SignedDescription.Limits) ![]const u8 {
+            try self.ownerLive();
+            if (self.overlapsStorage(output) or self.overlapsStorage(workspace) or buffer.overlaps(output, workspace)) return error.AliasedBuffer;
+            for ([_][]const u8{ std.mem.asBytes(key), parameters.domain }) |protected| {
+                if (buffer.overlaps(output, protected) or buffer.overlaps(workspace, protected)) return error.AliasedBuffer;
+            }
+            _ = try key.publicKey();
+            if (self.config.max_description_bytes > 64 * 1024) return error.InvalidLimits;
+            var fixed: std.heap.FixedBufferAllocator = .init(workspace);
+            const storage = fixed.allocator().alloc(u8, self.config.max_description_bytes + 1) catch return error.IdentityWorkspaceLimit;
+            const text = try self.writeLocalDescription(storage);
+            var lines: [core.SessionDescription.max_lines][]const u8 = undefined;
+            const description = try core.SessionDescription.parse(text, &lines, limits.description);
+            return core.SignedDescription.write(key, self.io, &description, output, workspace[fixed.end_index..], parameters, limits);
         }
 
         /// Trusted native integration only. Moves an extra same-peer handle on
@@ -441,6 +497,13 @@ const test_config: connection.Config = .{
     .incoming_bytes = 16 * 17,
     .outgoing = .{ .limits = .{ .{ .frame_bytes = 7, .message_bytes = 64 }, .{ .frame_bytes = 17, .message_bytes = 64 } }, .payload_bytes = 64, .buffered_bytes = 1024 },
 };
+var test_certificate_rejected: std.atomic.Value(bool) = .init(false);
+
+fn certificateRejectionLog(_: c.rtcLogLevel, message: [*c]const u8) callconv(.c) void {
+    if (message != null and std.mem.indexOf(u8, std.mem.span(message), "Invalid fingerprint") != null)
+        test_certificate_rejected.store(true, .release);
+}
+
 const TestFixture = struct {
     owner: u64 = 91,
     connection_config: connection.Config = test_config,
@@ -452,7 +515,10 @@ const TestFixture = struct {
     restore_channel: ?c_int = null,
 
     fn init(self: *TestFixture, config: Config) !void {
-        c.rtcInitLogger(c.RTC_LOG_NONE, null);
+        // Install the callback on the first initialization. Adding it after a
+        // console appender exists leaves stdout enabled and corrupts Zig's test
+        // server protocol when the rejection test enables error-level logging.
+        c.rtcInitLogger(c.RTC_LOG_NONE, certificateRejectionLog);
         try TestPeer.check(c.rtcSetThreadPoolSize(4));
         const charge = try TestManager.reservationBytes(self.connection_config);
         try self.manager.init(std.testing.allocator, std.testing.io, self.owner, .{ .connections = 1, .payload_bytes = charge });
@@ -470,6 +536,15 @@ const TestFixture = struct {
             .event_visits = 32,
             .connection = .{ .send = .{ .steps = 1, .wire_bytes = 128 }, .receive_frames = 16, .receive_bytes = 272, .discard_frames = 16 },
         });
+    }
+
+    fn gather(self: *TestFixture, kind: DescriptionType) !void {
+        try self.peer.setLocalDescription(kind);
+        const start = std.Io.Clock.awake.now(std.testing.io);
+        while (!self.peer.gathering_done.load(.acquire)) {
+            if (start.durationTo(std.Io.Clock.awake.now(std.testing.io)).toNanoseconds() > 10 * std.time.ns_per_s) return error.NativeGatherTimeout;
+            try std.Io.sleep(std.testing.io, .fromMilliseconds(1), .awake);
+        }
     }
 
     fn finish(self: *TestFixture) !void {
@@ -517,6 +592,117 @@ test "WebRTC binding transfers cleanup ownership before creating native resource
     try std.testing.expectError(error.NotStarted, fixture.peer.setLocalDescription(.offer));
     try std.testing.expectError(error.NotQuiesced, fixture.peer.deinit());
     try std.testing.expectError(error.AlreadyBound, fixture.peer.bind(&fixture.manager, fixture.id, .{}));
+}
+
+test "WebRTC imports a Zig certificate and signs its actual gathered SDP" {
+    var fixture: TestFixture = .{};
+    try fixture.init(.{});
+    defer fixture.deinit();
+    const now = std.Io.Clock.real.now(std.testing.io).toSeconds();
+    var certificate = try core.DtlsCertificate.generate(std.testing.io, .{ .now = now });
+    defer certificate.deinit();
+    const fingerprint = try certificate.fingerprint();
+    try fixture.peer.startWithCertificate(.offerer, "127.0.0.1", &certificate);
+    certificate.deinit(); // Native code must already own its imported key pair.
+    try fixture.gather(.offer);
+    var key = try core.OperatorKey.generate(std.testing.io);
+    defer key.deinit();
+    var output: [32 * 1024]u8 = undefined;
+    defer @memset(&output, 0);
+    var workspace: [256 * 1024]u8 = undefined;
+    defer @memset(&workspace, 0);
+    const signed = try fixture.peer.writeSignedLocalDescription(&key, &output, &workspace, .{ .now = now }, .{});
+    var lines: [core.SessionDescription.max_lines][]const u8 = undefined;
+    const description = try core.SessionDescription.parse(signed, &lines, .{});
+    try core.CertificateBinding.validate(&description, fingerprint);
+    var attributes = description.attributes("identity", .session);
+    var assertion = try core.IdentityAssertion.parse(std.testing.allocator, attributes.next().?, .{});
+    defer assertion.deinit();
+    try std.testing.expect(attributes.next() == null);
+    const public = try key.publicKey();
+    try assertion.token.verifyEs384(&public);
+    try assertion.token.checkTimestamps(now, 0);
+    var payload: [16 * 1024]u8 = undefined;
+    try assertion.verifyFingerprint(try core.FingerprintPayload.write(&description, &payload, .{}));
+    try std.testing.expectError(error.AliasedBuffer, fixture.peer.writeSignedLocalDescription(&key, std.mem.asBytes(&key), &workspace, .{ .now = now }, .{}));
+}
+
+test "WebRTC rejects local certificate substitution before signing or publication" {
+    var fixture: TestFixture = .{};
+    try fixture.init(.{});
+    defer fixture.deinit();
+    try fixture.peer.start(.offerer, "127.0.0.1");
+    try fixture.gather(.offer);
+    var key = try core.OperatorKey.generate(std.testing.io);
+    defer key.deinit();
+    var raw: [16 * 1024]u8 = undefined;
+    defer @memset(&raw, 0);
+    _ = try fixture.peer.writeLocalDescription(&raw);
+    const expiry = fixture.peer.local_certificate_after;
+    fixture.peer.local_certificate_after = 0;
+    try std.testing.expectError(error.CertificateExpired, fixture.peer.writeLocalDescription(&raw));
+    fixture.peer.local_certificate_after = expiry;
+    fixture.peer.local_fingerprint.?[0] ^= 1;
+    try std.testing.expectError(error.CertificateFingerprintMismatch, fixture.peer.writeLocalDescription(&raw));
+    var output: [32 * 1024]u8 = @splat(42);
+    var workspace: [256 * 1024]u8 = undefined;
+    defer @memset(&workspace, 0);
+    try std.testing.expectError(error.CertificateFingerprintMismatch, fixture.peer.writeSignedLocalDescription(&key, &output, &workspace, .{ .now = 0 }, .{}));
+    try std.testing.expect(std.mem.allEqual(u8, &output, 42));
+}
+
+test "WebRTC failed certificate import keeps native handle ownership empty" {
+    var fixture: TestFixture = .{};
+    try fixture.init(.{});
+    defer fixture.deinit();
+    var certificate = try core.DtlsCertificate.generate(std.testing.io, .{ .now = std.Io.Clock.real.now(std.testing.io).toSeconds() });
+    defer certificate.deinit();
+    certificate.der[0] = 0;
+    try std.testing.expectError(error.NativeCallFailed, fixture.peer.startWithCertificate(.offerer, "127.0.0.1", &certificate));
+    try std.testing.expectEqual(@as(c_int, -1), fixture.peer.peer);
+    try std.testing.expectEqual(@as(?[32]u8, null), fixture.peer.local_fingerprint);
+    try std.testing.expectEqual(Fault.native_call, fixture.peer.fault.load(.acquire));
+    try std.testing.expectError(error.NotQuiesced, fixture.peer.deinit());
+}
+
+test "WebRTC DTLS refuses a remote fingerprint that names another certificate" {
+    var left: TestFixture = .{};
+    var right: TestFixture = .{ .owner = 92 };
+    try left.init(.{});
+    right.init(.{}) catch |err| {
+        left.deinit();
+        return err;
+    };
+    defer {
+        left.finish() catch @panic("Left certificate test cleanup failed");
+        right.finish() catch @panic("Right certificate test cleanup failed");
+        left.deinit();
+        right.deinit();
+    }
+    test_certificate_rejected.store(false, .release);
+    c.rtcInitLogger(c.RTC_LOG_ERROR, certificateRejectionLog);
+    defer c.rtcInitLogger(c.RTC_LOG_NONE, null);
+    try left.peer.start(.offerer, "127.0.0.1");
+    try right.peer.start(.answerer, "127.0.0.1");
+    var sdp: [16 * 1024]u8 = undefined;
+    defer @memset(&sdp, 0);
+    try left.gather(.offer);
+    const offer = try left.peer.writeLocalDescription(&sdp);
+    const marker = "a=fingerprint:sha-256 ";
+    const offset = (std.mem.indexOf(u8, offer, marker) orelse return error.MissingFingerprint) + marker.len;
+    sdp[offset] = if (sdp[offset] == '0') '1' else '0';
+    try right.peer.setRemoteDescription(offer, .offer);
+    try right.gather(.answer);
+    try left.peer.setRemoteDescription(try right.peer.writeLocalDescription(&sdp), .answer);
+    const start = std.Io.Clock.awake.now(std.testing.io);
+    while (right.peer.fault.load(.acquire) != .transport_failed or !test_certificate_rejected.load(.acquire)) {
+        if (right.peer.native_state.load(.acquire) == c.RTC_CONNECTED) return error.AcceptedWrongDtlsCertificate;
+        if (start.durationTo(std.Io.Clock.awake.now(std.testing.io)).toNanoseconds() > 10 * std.time.ns_per_s) return error.NativeCertificateRejectionTimeout;
+        try std.Io.sleep(std.testing.io, .fromMilliseconds(1), .awake);
+    }
+    // RTC_FAILED can be followed immediately by RTC_CLOSED. Require the
+    // fingerprint verifier's rejection and the sticky failure receipt.
+    try std.testing.expectEqual(Fault.transport_failed, right.peer.fault.load(.acquire));
 }
 
 test "WebRTC callback copies retain admission credits and sticky queue failure" {

@@ -67,6 +67,10 @@ optional-field presence. It cannot distinguish a zero-lifetime channel from
 zero retransmissions in every remote DCEP case. Strict rejection of that
 ambiguity remains a provider gate.
 
+The adapter generates its DTLS certificate in Zig and imports it into the
+provider. It keeps its fingerprint and validity for local SDP checks. See
+[DTLS certificates](dtls-certificates.md) for ownership and the signed-output API.
+
 Description APIs use full ICE, bounded caller storage and one local/remote
 description exchange. Remote input rejects empty, oversized and embedded-null
 strings before native parsing. The [Zig SDP boundary](sdp.md) validates structure
@@ -149,7 +153,7 @@ cryptographic configuration with the DTLS-SRTP extension enabled. The build
 retains its warning checks. This is not a reduced or audited production TLS
 configuration.
 
-The driver runs ten native adapter tests and the Zig probe in debug and safe
+The driver runs fourteen native adapter tests and the Zig probe in debug and safe
 modes. It checks the adapter test count as well as the probe's result. Native
 tests run each time, including after cached compilation. To repeat them after
 building the native prefix, supply its absolute path:

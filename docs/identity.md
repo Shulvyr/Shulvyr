@@ -149,8 +149,10 @@ or expansion errors may occur after signing.
 
 The input must come from the caller's local negotiation flow. This helper does
 not create an SDP answer, validate ICE/DTLS or prove that a fingerprint matches
-the actual transport certificate. Those checks and a durable operator key are
-required at the provider and negotiation boundaries before accepting clients.
+the actual transport certificate. The optional native peer supplies that
+[certificate binding](dtls-certificates.md) through `writeSignedLocalDescription`,
+using its actual gathered SDP and configured certificate. A durable operator key
+and admission policy are still required at the negotiation boundary.
 
 ## Independent evidence
 

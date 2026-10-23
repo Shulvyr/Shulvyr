@@ -70,7 +70,7 @@ test "probe requires exact counters, one summary and all adapter tests" {
     defer arena.deinit();
     const allocator = arena.allocator();
     const summary = try std.json.Stringify.valueAlloc(allocator, Contract.expected_probe, .{});
-    const good = try std.mem.concat(allocator, u8, &.{ summary, "\n10/10 tests passed\n" });
+    const good = try std.mem.concat(allocator, u8, &.{ summary, "\n", Contract.adapter_summary, "\n" });
     try Contract.verifyProbe(allocator, good);
     const changed = try std.mem.replaceOwned(u8, allocator, good, "\"zig_allocation_leaks\":0", "\"zig_allocation_leaks\":1");
     try testing.expectError(error.NativeProbeFailed, Contract.verifyProbe(allocator, changed));
@@ -78,6 +78,8 @@ test "probe requires exact counters, one summary and all adapter tests" {
     try testing.expectError(error.NativeProbeFailed, Contract.verifyProbe(allocator, try std.mem.concat(allocator, u8, &.{ good, summary, "\n" })));
     const incomplete = "{\"cycles\":3}\n10/10 tests passed";
     try testing.expectError(error.NativeProbeFailed, Contract.verifyProbe(allocator, incomplete));
+    const stale = try std.mem.concat(allocator, u8, &.{ summary, "\n10/10 tests passed\n" });
+    try testing.expectError(error.NativeProbeFailed, Contract.verifyProbe(allocator, stale));
 }
 
 test "workspace rejects unowned directories and mismatched source pins" {

@@ -2,6 +2,8 @@ const std = @import("std");
 const Json = @import("../reference_sources.zig");
 const Value = std.json.Value;
 const Allocator = std.mem.Allocator;
+pub const native_adapter_tests = 14;
+pub const adapter_summary = std.fmt.comptimePrint("{d}/{d} tests passed", .{ native_adapter_tests, native_adapter_tests });
 
 pub const Dependency = struct { path: []const u8, repository: []const u8, license: []const u8 };
 pub const channel_dependencies = [_]Dependency{
@@ -190,5 +192,5 @@ pub fn verifyProbe(allocator: Allocator, output: []const u8) !void {
         if (!std.meta.eql(parsed, expected_probe)) return error.NativeProbeFailed;
         summaries += 1;
     }
-    if (summaries != 1 or std.mem.indexOf(u8, output, "10/10 tests passed") == null) return error.NativeProbeFailed;
+    if (summaries != 1 or std.mem.indexOf(u8, output, adapter_summary) == null) return error.NativeProbeFailed;
 }

@@ -93,6 +93,11 @@ contracts and tests. See its [remaining production gates](native-transport.md).
   owner-only access, explicit recovery and backup. The executable exposes its
   management commands. See [operator keys](operator-keys.md). Negotiation and
   certificate binding remain separate from [identity primitives](identity.md).
+- `transport/identity/DtlsCertificate.zig` generates bounded ephemeral P-256
+  certificates in Zig. `transport/sdp/CertificateBinding.zig` checks every local
+  SDP fingerprint against the configured full-certificate digest. The optional
+  native peer imports that certificate and signs its gathered SDP through these
+  contracts. See [DTLS certificates](dtls-certificates.md).
 - `transport/framing.zig` splits and reassembles bounded NetherNet messages.
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound

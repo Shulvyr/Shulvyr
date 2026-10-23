@@ -154,7 +154,7 @@ fn execute(init: std.process.Init, output: *Io.Writer, options: Options) !void {
         const probe = try runner.run(&.{ zig, "build", "test-native-transport", try define(allocator, "native-transport-prefix", prefix), try define(allocator, "optimize", mode), "--summary", "all" }, .{ .log = try std.fmt.allocPrint(allocator, "probe-{s}.log", .{mode}), .seconds = 300, .private = true });
         defer init.gpa.free(probe);
         try Contract.verifyProbe(allocator, probe);
-        try output.print("Native adapter tests passed: 10 ({s})\n", .{mode});
+        try output.print("Native adapter tests passed: {d} ({s})\n", .{ Contract.native_adapter_tests, mode });
     }
     const library = try join(allocator, prefix, if (builtin.os.tag == .windows) "bin/datachannel.dll" else "lib/libdatachannel.so");
     const bytes = try cwd.readFileAlloc(io, library, allocator, .limited(128 * 1024 * 1024));
@@ -175,7 +175,7 @@ fn execute(init: std.process.Init, output: *Io.Writer, options: Options) !void {
         .generator_requirements_sha256 = requirements_hash,
         .library_sha256 = std.fmt.bytesToHex(hash, .lower),
         .upstream_tests = count,
-        .native_adapter_tests = 10,
+        .native_adapter_tests = Contract.native_adapter_tests,
         .zig_probes = [_][]const u8{ "debug", "safe" },
     }, .{ .whitespace = .indent_2 });
     try workspace.write(io, "evidence.json", evidence);
