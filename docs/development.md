@@ -1,7 +1,9 @@
 # Development
 
 The foundation uses Zig 0.17.0 and the Zig standard library. There are no external
-Zig packages or runtime libraries. The build rejects other compiler versions.
+Zig packages or runtime libraries in the server. The build rejects other compiler
+versions. The optional [native transport probe](native-transport.md) builds a
+development-only C API candidate with separately pinned source dependencies.
 
 Behavior ports use [Axolotl-PM's default branch](https://github.com/axolotl-pm/PocketMine-MP/tree/stable)
 as the maintained PocketMine baseline. Resolve the latest branch heads before

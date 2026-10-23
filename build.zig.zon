@@ -25,5 +25,6 @@
         "tools/check_registry_fixtures.py",
         "tools/generate_block_fixtures.php",
         "tools/check_block_fixtures.py",
+        "tools/native-transport",
     },
 }

@@ -63,4 +63,39 @@ pub fn build(b: *std.Build) void {
     invalid.expectStdOutEqual("");
     invalid.expectStdErrEqual("error: InvalidValue\n");
     test_step.dependOn(&invalid.step);
+
+    const transport_test = b.step("test-native-transport", "Run the optional native WebRTC C API probe");
+    if (b.option([]const u8, "native-transport-prefix", "Prefix produced by tools/native-transport/build_probe.py")) |prefix| {
+        const api = b.addTranslateC(.{
+            .root_source_file = b.path("tools/native-transport/rtc_api.h"),
+            .target = target,
+            .optimize = optimize,
+        });
+        api.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{ prefix, "include" }) });
+        const probe_module = b.createModule(.{
+            .root_source_file = b.path("tools/native-transport/probe.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+            .imports = &.{
+                .{ .name = "shulvyr", .module = core },
+                .{ .name = "rtc", .module = api.createModule() },
+            },
+        });
+        probe_module.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{ prefix, "include" }) });
+        const library_path = b.pathJoin(&.{ prefix, "lib" });
+        probe_module.addLibraryPath(.{ .cwd_relative = library_path });
+        probe_module.addRPath(.{ .cwd_relative = library_path });
+        probe_module.linkSystemLibrary("datachannel", .{});
+        const probe = b.addExecutable(.{ .name = "transport-probe", .root_module = probe_module });
+        const run_probe = b.addRunArtifact(probe);
+        if (target.result.os.tag == .windows) {
+            run_probe.setEnvironmentVariable("PATH", b.fmt("{s};{s}", .{
+                b.pathJoin(&.{ prefix, "bin" }), b.graph.environ_map.get("PATH") orelse "",
+            }));
+        }
+        transport_test.dependOn(&run_probe.step);
+    } else {
+        transport_test.dependOn(&b.addFail("Run tools/native-transport/build_probe.py and supply -Dnative-transport-prefix").step);
+    }
 }
