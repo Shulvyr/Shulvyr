@@ -40,6 +40,19 @@ test "key store requires a stable opened parent and rejects closed owners" {
     try expectError(error.KeyStoreClosed, store.load(io));
 }
 
+test "directory synchronization accepts lookup-only parent capabilities" {
+    var temporary = std.testing.tmpDir(.{});
+    defer temporary.cleanup();
+    var parent = try temporary.dir.openDir(io, ".", .{});
+    defer parent.close(io);
+    try Private.syncDirectory(io, parent);
+    var store = try Store.initialize(io, parent, "keys", .{});
+    defer store.close(io);
+    var loaded = try store.load(io);
+    defer loaded.deinit();
+    try std.testing.expectEqual(@as(u64, 1), loaded.metadata.generation);
+}
+
 test "operator key store survives reopen and rotates with a pinned identity" {
     var temporary = std.testing.tmpDir(.{});
     defer temporary.cleanup();

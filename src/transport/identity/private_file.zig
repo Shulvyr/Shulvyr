@@ -63,7 +63,13 @@ pub fn syncDirectory(io: Io, handle: Io.Dir) !void {
     if (handle.handle == Io.Dir.cwd().handle) return error.KeyStoreParentMustBeOpen;
     switch (builtin.os.tag) {
         .windows => try Windows.syncDirectory(io, handle),
-        .linux => try (Io.File{ .handle = handle.handle, .flags = .{ .nonblocking = false } }).sync(io),
+        .linux => {
+            // Zig may open a non-iterable parent with O_PATH. Reopen this
+            // capability for reading because fsync rejects O_PATH descriptors.
+            var readable = try handle.openDir(io, ".", .{ .iterate = true, .follow_symlinks = false });
+            defer readable.close(io);
+            try (Io.File{ .handle = readable.handle, .flags = .{ .nonblocking = false } }).sync(io);
+        },
         else => return error.KeyStorePlatformUnsupported,
     }
 }

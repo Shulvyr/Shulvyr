@@ -79,7 +79,10 @@ the file, then appends the commit checksum and flushes again. A successful
 rotation follows the second flush. Initialization and backup additionally
 flush the key directory and its parent so their namespace entries have a
 filesystem commit boundary. Windows reopens directory capabilities with write
-access for this operation. Unsupported synchronization is an error.
+access for this operation. Linux reopens them for reading because Zig's default
+lookup-only directories use `O_PATH`, which does not support
+[`fsync`](https://man7.org/linux/man-pages/man2/open.2.html).
+Unsupported synchronization is an error.
 
 The default and hard limit is 4,096 records, at most 655,376 bytes. A caller may
 choose a smaller limit. Loading validates the entire committed prefix with
