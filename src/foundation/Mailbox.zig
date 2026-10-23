@@ -34,6 +34,16 @@ pub fn Mailbox(comptime T: type, comptime capacity: usize) type {
             return if (count == 0) null else output[0];
         }
 
+        /// Worker-side wait for one message or closure. Do not call on an owner
+        /// that must keep ticking. Queued values drain before Closed is returned.
+        pub fn waitReceive(self: *@This(), io: std.Io) error{ NotInitialized, Closed }!T {
+            const queue = if (self.queue) |*queue| queue else return error.NotInitialized;
+            var output: [1]T = undefined;
+            const count = try queue.getUncancelable(io, &output, 1);
+            std.debug.assert(count == 1);
+            return output[0];
+        }
+
         /// Idempotent. Already queued messages still belong to the receiver.
         pub fn close(self: *@This(), io: std.Io) void {
             if (self.queue) |*queue| queue.close(io);
@@ -47,6 +57,7 @@ test "mailbox moves only accepted messages and drains after close" {
     var pending: ?u32 = 1;
     try std.testing.expectError(error.NotInitialized, mailbox.send(io, &pending));
     try std.testing.expectError(error.NotInitialized, mailbox.receive(io));
+    try std.testing.expectError(error.NotInitialized, mailbox.waitReceive(io));
     try mailbox.init();
     try std.testing.expectError(error.AlreadyInitialized, mailbox.init());
     try std.testing.expectEqual(null, try mailbox.receive(io));
@@ -65,7 +76,8 @@ test "mailbox moves only accepted messages and drains after close" {
     pending = 4;
     try std.testing.expectError(error.Closed, mailbox.send(io, &pending));
     try std.testing.expectEqual(@as(?u32, 4), pending);
-    try std.testing.expectEqual(@as(?u32, 2), try mailbox.receive(io));
+    try std.testing.expectEqual(@as(u32, 2), try mailbox.waitReceive(io));
     try std.testing.expectEqual(@as(?u32, 3), try mailbox.receive(io));
     try std.testing.expectError(error.Closed, mailbox.receive(io));
+    try std.testing.expectError(error.Closed, mailbox.waitReceive(io));
 }

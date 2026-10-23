@@ -28,6 +28,8 @@ pub const Outbox = @import("transport/Outbox.zig").Outbox;
 pub const outbound = @import("transport/Outbox.zig");
 pub const Inbox = @import("transport/Inbox.zig").Inbox;
 pub const inbound = @import("transport/Inbox.zig");
+pub const Reaper = @import("transport/Reaper.zig").Reaper;
+pub const teardown = @import("transport/Reaper.zig");
 pub const cli = @import("operator/cli.zig");
 
 test {
@@ -40,4 +42,5 @@ test {
     _ = @import("transport/framing_test.zig");
     _ = @import("transport/outbox_test.zig");
     _ = @import("transport/inbox_test.zig");
+    _ = @import("transport/reaper_test.zig");
 }

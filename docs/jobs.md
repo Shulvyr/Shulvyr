@@ -21,6 +21,10 @@ operations use the standard queue's `min=0` mode. They do not wait for queue spa
 or incoming messages. The underlying queue still synchronizes its critical
 sections. This is not a lock-free or wait-free contract.
 
+`waitReceive` uses `min=1` for workers that should sleep until a job or closure
+arrives. It transfers one value, draining queued work before returning `Closed`.
+Never use it on an owner that must continue ticking.
+
 `close` rejects future sends and allows existing messages to drain. After the
 last queued message, receivers get `Closed`. Closing is idempotent and does not
 free messages. The shutdown owner must stop producers and workers, join them,
@@ -51,11 +55,14 @@ the job has been canceled or the world no longer exists. Repeated acceptance
 returns null, including for zero-length messages.
 
 This check does not resolve world handles, authenticate a worker, deduplicate
-separately copied messages or define transaction ordering. Per-job tickets,
-cooperative cancellation of running work, time limits, a worker pool and
-subsystem commit rules remain later integration work. Queue capacity bounds
-queued message count. Producers must choose a consistent per-payload limit and
-account separately for input copies, in-flight work and unsent results.
+separately copied messages or define transaction ordering. General-purpose job
+tickets, cooperative cancellation of running work, time limits, a worker pool and
+subsystem commit rules remain later integration work. The dedicated transport
+[Reaper](transport.md#provider-finalization-worker) supplies scoped cleanup
+tickets and retains failed native contexts. It is not a general-purpose job pool.
+Queue capacity bounds queued message count. Producers must choose a consistent
+per-payload limit and account separately for input copies, in-flight work and
+unsent results.
 
 ## Evidence and scope
 

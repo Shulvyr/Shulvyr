@@ -164,6 +164,44 @@ excludes transport-level buffering. These limits do not establish a bound on
 all libdatachannel, SCTP or TLS memory. Native control traffic and production
 provider resource limits remain part of the provider gate.
 
+## Provider finalization worker
+
+`Reaper(capacity)` has one owner and one management worker. Reserve a scoped
+ticket before publishing a native connection that will need cleanup. Capacity
+covers reservations, queued/running finalizers, uncollected completions and
+retained contexts. One reservation per session prevents duplicate submission.
+Exhausted ticket generations retire their slots.
+Credits end when ownership returns. Connection pools must account separately
+for returned context memory and native provider allocations.
+
+`submit` moves a provider task only on success. It validates the ticket and
+session identity before transfer. The worker runs the provider finalizer,
+which may wait for native callback barriers but must not access owner state,
+reenter the reaper or depend on owner work. It must leave its context allocated.
+The context's address and referenced buffers must remain valid until the owner
+takes it back, including while a failed task waits for retry.
+Only a successful finalizer may assert that all users of the context have
+quiesced. The reaper cannot independently verify a provider's assertion.
+
+Each submitted task produces one scalar completion. Retained reservation
+credits guarantee room in the completion mailbox even if its owner stops
+collecting. `collect` never waits for a job. It records the outcome without
+releasing the context or its credit. The owner checks the returned session
+before changing connection state.
+
+`takeFinalized` returns a quiesced context once and releases its credit. Failed
+contexts remain held, cannot be canceled or taken, and can be retried with their
+original finalizer. Providers must preserve partial progress safely across
+retries. A permanently failing or stuck finalizer retains its context and may
+prevent shutdown. No deadline forcibly frees callback state or kills a thread.
+
+`requestStop` refuses new reservations while allowing existing reservations
+to submit cleanup. Only unused reservations can be canceled. Shutdown still
+requires collecting results, retrying failures and taking quiesced contexts.
+The job queue closes once every credit has returned. `join` refuses outstanding
+work, so it cannot wait for a result the caller still needs to collect.
+`tryJoin` supports owner polling. Deinitialize only after worker exit is joined.
+
 ## Verification
 
 The [fixture manifest](../src/transport/fixtures/manifest.json) binds the generator,
@@ -189,6 +227,9 @@ admission, bounded pump work, partial-send failure and stale providers. The
 Inbox tests cover concurrent channel producers, immutable copies, lease
 accounting, repeated acceptance, stale identities, negotiation retry, sticky
 failure, allocation faults and stop during an in-flight allocation. The
+Reaper tests cover actual worker execution, reservation/result pressure, failed
+finalizer retry, shutdown admission, stale tickets, generation exhaustion and
+allocation failures. The
 [native probe](native-transport.md) routes copied frames through the same core
 and cancels a partial assembly before closing native connections. Native queue
 memory, real client signaling and authenticated gameplay remain separate gates.

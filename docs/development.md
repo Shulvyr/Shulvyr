@@ -46,6 +46,8 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   snapshots and bounds queue admission, provider buffering observations and
   per-pump work through a scoped `FrameSink`. `transport/Inbox.zig` reserves
   callback snapshot capacity before allocation and keeps it through owner leases.
+  `transport/Reaper.zig` runs provider finalizers off the owner and retains
+  contexts until successful quiescence and explicit owner collection.
   See [transport contracts](transport.md)
   for limits, ownership, error policy and oracle evidence.
 - `foundation/binary.zig` borrows input and output buffers. Failed reads restore
