@@ -1,0 +1,33 @@
+{
+    "schema": 1,
+    "oracles": {
+        "NBT": {
+            "repository": "https://github.com/pmmp/NBT",
+            "branch": "stable",
+            "revision": "5429a21c9321eb154f7fcdaa789d2b5ccbcc6ea3"
+        },
+        "BedrockProtocol": {
+            "repository": "https://github.com/axolotl-pm/BedrockProtocol",
+            "branch": "master",
+            "revision": "59e48666b9ca82bdc8c60c518438e2fc3f5e1b60"
+        }
+    },
+    "data_source": {
+        "repository": "https://github.com/axolotl-pm/BedrockData",
+        "branch": "master",
+        "revision": "488f81d2ab95841337fb9331efe9d6b74ceddb07",
+        "license": "CC0-1.0"
+    },
+    "data_sha256": "2d7b06dac6b389758b0799e293e54d95a3e28872093612b5101d53ab84faf9b6",
+    "generator_sha256": "fd3ae47f40cc910acf5b9bd27cd52f3274a55b093fe04b7a3740c72575dbc5d6",
+    "files": {
+        "input.json": {
+            "bytes": 1427,
+            "sha256": "d465c94eec8233e16a94af5774399a3b0077d87b0b437a8a43df3884f1c0fc95"
+        },
+        "expected.json": {
+            "bytes": 4612,
+            "sha256": "44c4d81badacd33c300746df840288d762eede7d0f2a4c946ff0bf06902caaf0"
+        }
+    }
+}

@@ -21,6 +21,7 @@ zig build test -Doptimize=safe --summary all
 python tools/check_nbt_fixtures.py
 python tools/check_math_fixtures.py
 python tools/generate_registries.py --check
+python tools/check_registry_fixtures.py
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 ```

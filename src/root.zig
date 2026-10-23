@@ -25,4 +25,5 @@ test {
     std.testing.refAllDecls(@This());
     _ = @import("math/math_test.zig");
     _ = @import("simulation/job_test.zig");
+    _ = @import("registry/registry_test.zig");
 }

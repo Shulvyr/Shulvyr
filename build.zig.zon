@@ -21,5 +21,7 @@
         "tools/generate_registries.py",
         "tools/test_registry_codegen.py",
         "tools/test_registry_compile.py",
+        "tools/generate_registry_fixtures.php",
+        "tools/check_registry_fixtures.py",
     },
 }

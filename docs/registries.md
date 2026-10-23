@@ -56,6 +56,7 @@ runtime. Ordinary Zig builds use the checked-in output directly.
 ```sh
 python tools/generate_registries.py
 python tools/generate_registries.py --check
+python tools/check_registry_fixtures.py
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 zig fmt --check build.zig build.zig.zon src
@@ -74,6 +75,37 @@ and a complete permutation of network mappings. Compile-contract tests check
 these failures using the pinned compiler. Runtime tests cover fixed dictionary
 vectors, invalid IDs, domain separation and both lookup directions for every
 entry. Python tests compare every generated row against its source mapping.
+
+## Lookup oracle
+
+[Fixture inputs](../src/registry/fixtures/input.json) include synthetic signed
+i16 boundaries, zero, missing values and selected source-dictionary queries.
+The development generator calls `ItemTypeDictionary.fromStringId` and
+`fromIntId` from the recorded Axolotl-PM BedrockProtocol default-branch revision.
+It uses the recorded NBT revision only to construct an empty `CacheableNbt`
+placeholder. Lookup methods do not inspect item components.
+
+There are 39 query answers. The generator also resolves every source key and
+its inverse through the upstream dictionary, then hashes all 2,076 mappings as
+ASCII lines of `key`, tab, signed decimal ID and newline, sorted by key. Zig
+tests compare that complete mapping hash and every query answer. Missing PHP
+lookups raise `InvalidArgumentException`. Fixtures normalize that outcome to
+`found: false`, which Zig exposes as null. Malformed keys and duplicate source
+definitions remain deliberate validation boundaries in Shulvyr's generator.
+
+The fixture manifest records input and expected-output hashes, source revisions,
+the data snapshot hash and the generator hash. PHP sources and runtime remain
+development-only. Expected answers and the mapping hash come from upstream
+public methods, not from the Zig implementation.
+
+To regenerate, use clean source checkouts at the manifest revisions and
+64-bit PHP 8.4 or newer:
+
+```sh
+php tools/generate_registry_fixtures.php /path/to/NBT /path/to/BedrockProtocol
+python tools/check_registry_fixtures.py
+zig build test --summary all
+```
 
 When updating data, resolve the latest upstream default branch, review schema
 and version changes, replace the exact input blobs and update their manifest.

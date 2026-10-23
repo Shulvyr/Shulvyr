@@ -1,0 +1,203 @@
+{
+    "source_entry_count": 2076,
+    "source_mapping_sha256": "6454fdb25f782c432ca9f23c8abfbb05b2513f9be9dfd481d6ed9d0440b6e7f2",
+    "synthetic_answers": [
+        {
+            "found": true,
+            "key": "shulvyr:alpha",
+            "network_id": -32768
+        },
+        {
+            "found": true,
+            "key": "shulvyr:beta",
+            "network_id": -1
+        },
+        {
+            "found": true,
+            "key": "shulvyr:delta",
+            "network_id": 0
+        },
+        {
+            "found": true,
+            "key": "shulvyr:epsilon",
+            "network_id": 1
+        },
+        {
+            "found": true,
+            "key": "shulvyr:gamma",
+            "network_id": 32767
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": true,
+            "key": "shulvyr:alpha",
+            "network_id": -32768
+        },
+        {
+            "found": true,
+            "key": "shulvyr:beta",
+            "network_id": -1
+        },
+        {
+            "found": true,
+            "key": "shulvyr:delta",
+            "network_id": 0
+        },
+        {
+            "found": true,
+            "key": "shulvyr:epsilon",
+            "network_id": 1
+        },
+        {
+            "found": true,
+            "key": "shulvyr:gamma",
+            "network_id": 32767
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        }
+    ],
+    "source_answers": [
+        {
+            "found": true,
+            "key": "minecraft:air",
+            "network_id": -158
+        },
+        {
+            "found": true,
+            "key": "minecraft:stone",
+            "network_id": 1
+        },
+        {
+            "found": true,
+            "key": "minecraft:apple",
+            "network_id": 882
+        },
+        {
+            "found": true,
+            "key": "minecraft:diamond_sword",
+            "network_id": 318
+        },
+        {
+            "found": true,
+            "key": "minecraft:shield",
+            "network_id": 358
+        },
+        {
+            "found": true,
+            "key": "minecraft:acacia_button",
+            "network_id": -140
+        },
+        {
+            "found": true,
+            "key": "minecraft:acacia_boat",
+            "network_id": 382
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": true,
+            "key": "minecraft:pink_concrete_double_slab",
+            "network_id": -1246
+        },
+        {
+            "found": true,
+            "key": "minecraft:air",
+            "network_id": -158
+        },
+        {
+            "found": true,
+            "key": "minecraft:acacia_button",
+            "network_id": -140
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": false,
+            "key": null,
+            "network_id": null
+        },
+        {
+            "found": true,
+            "key": "minecraft:stone",
+            "network_id": 1
+        },
+        {
+            "found": true,
+            "key": "minecraft:diamond_sword",
+            "network_id": 318
+        },
+        {
+            "found": true,
+            "key": "minecraft:shield",
+            "network_id": 358
+        },
+        {
+            "found": true,
+            "key": "minecraft:apple",
+            "network_id": 882
+        },
+        {
+            "found": true,
+            "key": "minecraft:glow_berries",
+            "network_id": 883
+        }
+    ]
+}

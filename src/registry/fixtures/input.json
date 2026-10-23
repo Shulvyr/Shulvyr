@@ -1,0 +1,52 @@
+{
+  "synthetic_entries": [
+    {"key": "shulvyr:alpha", "network_id": -32768},
+    {"key": "shulvyr:beta", "network_id": -1},
+    {"key": "shulvyr:delta", "network_id": 0},
+    {"key": "shulvyr:epsilon", "network_id": 1},
+    {"key": "shulvyr:gamma", "network_id": 32767}
+  ],
+  "synthetic_queries": [
+    {"key": "shulvyr:alpha"},
+    {"key": "shulvyr:beta"},
+    {"key": "shulvyr:delta"},
+    {"key": "shulvyr:epsilon"},
+    {"key": "shulvyr:gamma"},
+    {"key": "shulvyr:missing"},
+    {"key": "shulvyr:Alpha"},
+    {"key": "alpha"},
+    {"key": ""},
+    {"network_id": -32768},
+    {"network_id": -1},
+    {"network_id": 0},
+    {"network_id": 1},
+    {"network_id": 32767},
+    {"network_id": -2},
+    {"network_id": 2}
+  ],
+  "source_queries": [
+    {"key": "minecraft:air"},
+    {"key": "minecraft:stone"},
+    {"key": "minecraft:apple"},
+    {"key": "minecraft:diamond_sword"},
+    {"key": "minecraft:shield"},
+    {"key": "minecraft:acacia_button"},
+    {"key": "minecraft:acacia_boat"},
+    {"key": "minecraft:missing_shulvyr_fixture"},
+    {"key": "minecraft:Stone"},
+    {"key": "stone"},
+    {"key": ""},
+    {"network_id": -32768},
+    {"network_id": 32767},
+    {"network_id": -1246},
+    {"network_id": -158},
+    {"network_id": -140},
+    {"network_id": -1},
+    {"network_id": 0},
+    {"network_id": 1},
+    {"network_id": 318},
+    {"network_id": 358},
+    {"network_id": 882},
+    {"network_id": 883}
+  ]
+}
