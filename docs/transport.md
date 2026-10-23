@@ -341,7 +341,7 @@ produced by the Zig codec. Reproduce it with a clean oracle checkout:
 
 ```sh
 php tools/generate_framing_fixtures.php PATH_TO_NETHERNET
-python tools/check_framing_fixtures.py
+zig build check-fixtures --summary all
 zig build test --summary all
 ```
 

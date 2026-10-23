@@ -56,7 +56,7 @@ runtime. Ordinary Zig builds use the checked-in output directly.
 ```sh
 python tools/generate_registries.py
 python tools/generate_registries.py --check
-python tools/check_registry_fixtures.py
+zig build check-fixtures --summary all
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig
@@ -103,7 +103,7 @@ To regenerate, use clean source checkouts at the manifest revisions and
 
 ```sh
 php tools/generate_registry_fixtures.php /path/to/NBT /path/to/BedrockProtocol
-python tools/check_registry_fixtures.py
+zig build check-fixtures --summary all
 zig build test --summary all
 ```
 
@@ -151,7 +151,7 @@ versions, metadata, property order, signed boundaries and invalid roots.
 
 ```sh
 php tools/generate_block_fixtures.php /path/to/NBT /path/to/BinaryUtils /path/to/BedrockProtocol /path/to/PocketMine-MP
-python tools/check_block_fixtures.py
+zig build check-fixtures --summary all
 zig build test --summary all
 ```
 

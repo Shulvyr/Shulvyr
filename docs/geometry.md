@@ -70,7 +70,7 @@ revision and 64-bit PHP 8.4 or newer. No Composer installation is needed.
 
 ```sh
 php tools/generate_math_fixtures.php work/math-reference/Math
-python tools/check_math_fixtures.py
+zig build check-fixtures --summary all
 zig build test --summary all
 ```
 

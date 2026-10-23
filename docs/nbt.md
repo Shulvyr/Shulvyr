@@ -105,7 +105,7 @@ SHA-256 of the generator containing the synthetic input definition, and each
 output's size and SHA-256. Verify it:
 
 ```sh
-python tools/check_nbt_fixtures.py
+zig build check-fixtures --summary all
 ```
 
 To refresh, fetch each source's default branch and review changes to its
@@ -118,7 +118,7 @@ For example, with those checkouts under the ignored `work/nbt-reference` folder:
 
 ```sh
 php tools/generate_nbt_fixtures.php work/nbt-reference/NBT work/nbt-reference/BinaryUtils work/nbt-reference/AxolotlBedrockProtocol
-python tools/check_nbt_fixtures.py
+zig build check-fixtures --summary all
 zig build test --summary all
 ```
 

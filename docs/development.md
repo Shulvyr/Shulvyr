@@ -17,17 +17,12 @@ when designing each subsystem. Preserve the selected behavior in differential
 tests and record intentional deviations beside that subsystem's contract.
 
 ```sh
-zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig tools/check_transport_fixtures.zig
+zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig tools/check_transport_fixtures.zig tools/check_fixtures.zig
 zig build
 zig build test --summary all
 zig build test -Doptimize=safe --summary all
-python tools/check_nbt_fixtures.py
-python tools/check_math_fixtures.py
+zig build check-fixtures --summary all
 python tools/generate_registries.py --check
-python tools/check_registry_fixtures.py
-python tools/check_block_fixtures.py
-python tools/check_framing_fixtures.py
-zig build check-transport-fixtures --summary all
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 ```
@@ -47,12 +42,17 @@ projects provide behavior evidence and frozen test data. Building the default
 server does not fetch or run those projects. Their development stopping must
 not determine Shulvyr's ability to build or maintain its own behavior.
 
-Use Zig for new first-party maintenance tools. The signaling/SDP fixture checker
-is Zig and runs without Python or PHP. Older fixture checks, registry generation,
-compiler bootstrap and native-probe build tooling still use Python. Their
-migration is incomplete. Optional oracle regeneration uses the reference's
-language to produce independent evidence, with its revision and output hashes
-recorded. Normal tests consume checked-in bytes without invoking that runtime.
+Use Zig for new first-party maintenance tools. `zig build check-fixtures` checks
+all committed oracle fixtures without Python or PHP. It verifies provenance,
+generator hashes, file sets, wire hashes and the recorded semantic checks.
+It reads oracle generator source as data and never executes it. The focused
+`check-transport-fixtures` step checks only signaling and SDP.
+
+Registry generation and its tests, compiler bootstrap and native-probe build
+tooling still use Python. Their migration is incomplete. Optional oracle
+regeneration uses the reference's language to produce independent evidence,
+with its revision and output hashes recorded. Normal tests consume checked-in
+bytes without invoking that runtime.
 
 The default executable and core tests use Zig's standard library. The optional
 native WebRTC adapter is a development backend, with a separate C/C++ toolchain

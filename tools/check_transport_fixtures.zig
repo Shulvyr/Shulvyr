@@ -19,46 +19,46 @@ pub fn main(init: std.process.Init) !u8 {
     return 0;
 }
 
-fn run(arena: Allocator, io: std.Io, output: *std.Io.Writer) !void {
+pub fn run(arena: Allocator, io: std.Io, output: *std.Io.Writer) !void {
     try checkSignaling(arena, try load(arena, io, .signaling));
     try output.writeAll("Verified 30 independent signaling oracle cases\n");
     try checkSdp(arena, try load(arena, io, .sdp));
     try output.writeAll("Verified 42 SDP descriptions, 18 edits and 17 fingerprint oracle cases\n");
 }
 
-fn require(condition: bool) !void {
+pub fn require(condition: bool) !void {
     if (!condition) return error.InvalidFixture;
 }
 
-fn field(value: Value, name: []const u8) !Value {
+pub fn field(value: Value, name: []const u8) !Value {
     if (value != .object) return error.InvalidFixture;
     return value.object.get(name) orelse error.MissingField;
 }
 
-fn has(value: Value, name: []const u8) bool {
+pub fn has(value: Value, name: []const u8) bool {
     return value == .object and value.object.contains(name);
 }
 
-fn text(value: Value) ![]const u8 {
+pub fn text(value: Value) ![]const u8 {
     if (value != .string) return error.InvalidFixture;
     return value.string;
 }
 
-fn number(value: Value) !u64 {
+pub fn number(value: Value) !u64 {
     if (value != .integer or value.integer < 0) return error.InvalidFixture;
     return @intCast(value.integer);
 }
 
-fn items(value: Value) ![]const Value {
+pub fn items(value: Value) ![]const Value {
     if (value != .array) return error.InvalidFixture;
     return value.array.items;
 }
 
-fn same(value: Value, expected: []const u8) !void {
+pub fn same(value: Value, expected: []const u8) !void {
     try require(std.mem.eql(u8, try text(value), expected));
 }
 
-fn oracle(value: Value) !void {
+pub fn oracle(value: Value) !void {
     try require(value == .object and value.object.count() == 4);
     try same(try field(value, "repository"), "https://github.com/axolotl-pm/nethernet");
     try same(try field(value, "branch"), "master");
@@ -66,7 +66,7 @@ fn oracle(value: Value) !void {
     try same(try field(value, "license"), "LGPL-3.0-or-later");
 }
 
-fn digest(bytes: []const u8, expected: []const u8) !void {
+pub fn digest(bytes: []const u8, expected: []const u8) !void {
     if (expected.len != 64) return error.InvalidDigest;
     for (expected) |byte| if (!(byte >= '0' and byte <= '9') and !(byte >= 'a' and byte <= 'f')) return error.InvalidDigest;
     var wanted: [32]u8 = undefined;
@@ -76,11 +76,11 @@ fn digest(bytes: []const u8, expected: []const u8) !void {
     if (!std.mem.eql(u8, &wanted, &actual)) return error.DigestMismatch;
 }
 
-fn read(arena: Allocator, io: std.Io, path: []const u8) ![]const u8 {
+pub fn read(arena: Allocator, io: std.Io, path: []const u8) ![]const u8 {
     return std.Io.Dir.cwd().readFileAlloc(io, path, arena, .limited(1024 * 1024));
 }
 
-fn json(arena: Allocator, bytes: []const u8) !Value {
+pub fn json(arena: Allocator, bytes: []const u8) !Value {
     return std.json.parseFromSliceLeaky(Value, arena, bytes, .{ .allocate = .alloc_always });
 }
 
@@ -112,7 +112,7 @@ fn load(arena: Allocator, io: std.Io, kind: Kind) !Value {
     return fixture;
 }
 
-fn unhex(arena: Allocator, value: Value) ![]const u8 {
+pub fn unhex(arena: Allocator, value: Value) ![]const u8 {
     const hex = try text(value);
     if (hex.len % 2 != 0) return error.InvalidHex;
     const bytes = try arena.alloc(u8, hex.len / 2);

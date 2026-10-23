@@ -78,6 +78,20 @@ pub fn build(b: *std.Build) void {
     const fixture_tests = b.addTest(.{ .root_module = fixture_module });
     fixture_step.dependOn(&b.addRunArtifact(fixture_tests).step);
 
+    const all_fixture_module = b.createModule(.{
+        .root_source_file = b.path("tools/check_fixtures.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const all_fixture_checker = b.addExecutable(.{ .name = "check-fixtures", .root_module = all_fixture_module });
+    const check_all_fixtures = b.addRunArtifact(all_fixture_checker);
+    check_all_fixtures.setCwd(b.path("."));
+    check_all_fixtures.has_side_effects = true;
+    const all_fixture_step = b.step("check-fixtures", "Verify all oracle fixtures using Zig");
+    all_fixture_step.dependOn(&check_all_fixtures.step);
+    const all_fixture_tests = b.addTest(.{ .root_module = all_fixture_module });
+    all_fixture_step.dependOn(&b.addRunArtifact(all_fixture_tests).step);
+
     const transport_test = b.step("test-native-transport", "Run the optional native WebRTC C API probe");
     if (b.option([]const u8, "native-transport-prefix", "Prefix produced by tools/native-transport/build_probe.py")) |prefix| {
         const api = b.addTranslateC(.{
