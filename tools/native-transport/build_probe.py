@@ -32,7 +32,7 @@ def run(arguments: list[str], *, cwd: Path = ROOT, log: Path | None = None,
             print(diagnostic, flush=True)
         if private:
             for line in output.splitlines():
-                if re.fullmatch(r"(?:transport cycle \d+|callback probe) failed: [A-Za-z0-9_]+", line):
+                if re.fullmatch(r"(?:(?:transport cycle \d+|callback probe|native probe) failed: [A-Za-z0-9_]+|native probe leaked \d+ Zig allocations)", line):
                     print(line, flush=True)
         location = f", see {log}" if log else ""
         raise RuntimeError(f"{Path(arguments[0]).name} failed with exit {result.returncode}{location}")
@@ -186,7 +186,8 @@ def main() -> None:
                     "drained_receipts": 384,
                     "framed_messages": 771, "cancelled_assemblies": 3,
                     "native_disconnects": 3,
-                    "cancelled_offers": 16, "callback_boundary_checks": 6}
+                    "cancelled_offers": 16, "callback_boundary_checks": 7,
+                    "incoming_channel_overflows": 1, "zig_allocation_leaks": 0}
         summaries = [json.loads(line) for line in probe_output.splitlines() if line.startswith('{"cycles":')]
         if summaries != [expected]:
             raise RuntimeError("Zig native probe did not report its expected checks")

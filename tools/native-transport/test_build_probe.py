@@ -45,6 +45,24 @@ class WindowsCompilerSelection(unittest.TestCase):
 
 
 class PrivateDiagnostics(unittest.TestCase):
+    def test_probe_errors_and_leak_counts_keep_private_text_redacted(self):
+        work = ROOT / "work"
+        work.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=work) as folder:
+            log = Path(folder) / "probe.log"
+            output = io.StringIO()
+            program = "\n".join([
+                "print('native probe leaked 1 Zig allocations')",
+                "print('native probe failed: OutOfMemory')",
+                "print('native probe failed: a=ice-pwd:synthetic')",
+                "print('native probe leaked 2 Zig allocations a=ice-pwd:synthetic')",
+                "raise SystemExit(1)",
+            ])
+            with contextlib.redirect_stdout(output), self.assertRaises(RuntimeError):
+                run([sys.executable, "-c", program], log=log, private=True)
+            self.assertEqual(output.getvalue(), "native probe leaked 1 Zig allocations\nnative probe failed: OutOfMemory\n")
+            self.assertIn("a=ice-pwd:synthetic", log.read_text(encoding="utf-8"))
+
     def test_failed_native_test_keeps_raw_sdp_out_of_output(self):
         work = ROOT / "work"
         work.mkdir(exist_ok=True)

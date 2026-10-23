@@ -81,6 +81,40 @@ Closure is idempotent and records the first close reason. Caller storage remains
 owned by the caller.
 The core does not call a native library or free callback contexts.
 
+## Callback ingress and teardown
+
+`Inbox(capacity)` binds concurrent provider callbacks to one scoped session
+identity and one owner. Initialize it at its final address before registering
+callbacks. Keep the allocator and inbox alive through every callback and lease.
+The allocator must support concurrent allocation and freeing across those
+contexts. Providers must serialize callbacks within each channel.
+
+`post` validates identity and frame length, then reserves count and byte credits
+before allocation. Credits cover in-flight copies, queued frames and leases
+held by the owner. A lease frees its snapshot before returning credits. Payload
+accounting excludes allocator overhead, inline metadata and native buffers.
+Neither queue admission nor stop waits for the owner to make space. Mutexes and
+the allocator may still wait, so these operations have no hard time guarantee.
+
+Saturation, malformed lengths and allocation failure stop further admission.
+The first stop reason is stored outside the queue and survives a full queue or
+a later native close. Stale identities reject before changing that reason.
+`applyStop` propagates termination to the logical session on its owner.
+
+`receive` transfers a copied frame lease. `Lease.accept` checks the current
+session, applies sticky termination and invokes the bounded receiver. A frame
+can be accepted only once. `NotOpen` retains it for retry after negotiation.
+Complete application bytes borrow the session receiver, independent of the
+frame lease's allocation. Release every lease, including on errors.
+
+Stop does not destroy a native peer or establish a callback barrier. The owner
+must stop admission, unregister/delete provider resources using their actual
+barriers, and release all frame leases. `discard(limit)` releases a bounded
+number of queued frames after stop. A closed, empty queue can still have
+in-flight copies or live leases. Zero outstanding alone cannot prove that a
+future native callback will not run. Deinitialize only after producers have
+quiesced and all reservations, frames and leases have retired.
+
 ## Outbound admission and completion
 
 `Outbox(capacity)` belongs to one session lifetime and one owner. It keeps
@@ -152,6 +186,9 @@ classes, feeding controlled buffered amounts through the public receipt API.
 No PHP test classes or runtime are included in the Zig package. Outbox tests
 also cover allocation failures, queue wrap, completion pressure, shared native
 admission, bounded pump work, partial-send failure and stale providers. The
+Inbox tests cover concurrent channel producers, immutable copies, lease
+accounting, repeated acceptance, stale identities, negotiation retry, sticky
+failure, allocation faults and stop during an in-flight allocation. The
 [native probe](native-transport.md) routes copied frames through the same core
 and cancels a partial assembly before closing native connections. Native queue
 memory, real client signaling and authenticated gameplay remain separate gates.

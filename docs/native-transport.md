@@ -75,18 +75,36 @@ It checks three complete peer lifecycles, 384 application payloads and 384
 reported-drain receipts. Payloads pass through the bounded core Outbox and
 FrameSink adapter, with one pump step per owner iteration to force yielding
 between fragments. They travel in 771 framed messages, including three incomplete
-assemblies canceled by the owner. It validates labels, reliability, full ICE descriptions, three deletion
-barriers and three native disconnect events. Another 16 offers are closed
+assemblies canceled by the owner. It validates labels, protocol, reliability,
+full ICE descriptions, three deletion barriers and three native disconnect
+events. Another 16 offers are closed
 without waiting for gathering. Callback boundary checks cover immutable copies,
-queue saturation, text, null buffers, empty/header-only and oversize input.
+queue saturation, text, null buffers, empty/header-only and oversize input,
+plus a mismatched native channel ID. A separate connected pair opens five extra
+channels against a four-slot discovery queue. The overflowing channel has no
+callbacks installed and is deleted in its discovery callback. Its old handle
+must reject a query, while the owner observes the sticky failure and closes the
+logical session. The queued channel handles are deleted during teardown.
 Each wait has a deadline. The Python runner also bounds subprocess runtime.
+The probe uses a separate thread-safe Zig allocator and fails on leaked probe
+allocations in both build modes. This does not measure native C++ allocations.
 
-Callbacks copy borrowed C frames and their session identities into a fixed-capacity
-mailbox. Saturation fails the probe. The owner handles channel IDs, session state,
-frame reassembly and message validation. Each receive pass processes at most
-16 events per peer. A held native callback must finish before deletion returns. All callback contexts
+Callbacks use the core Inbox to copy borrowed C frames with scoped session and
+channel bindings. Its count and byte limits include in-flight allocation and
+owner leases. Saturation fails the probe through a sticky stop reason. Native
+channel discovery has its own bounded handle queue. The owner handles channel
+IDs, session state, frame reassembly and message validation. Each receive pass
+processes at most 16 discoveries and frames combined per peer. A held native
+callback must finish before deletion returns. All callback contexts
 outlive channel/peer deletion and the blocking `rtcCleanup` call. Never call
 cleanup from a callback or wait for owner work from a callback.
+
+The pinned C API's
+[global cleanup](https://github.com/paullouisageneau/libdatachannel/blob/bdc5ff28e9d3b863144c94a677ecf5bf043aaf15/src/capi.cpp#L1987)
+logs a timeout internally and returns `void`. It exposes no success status.
+Per-handle deletion barriers must quiesce callbacks before global cleanup.
+This probe does not inject a global cleanup timeout. A production provider
+still needs an observable teardown-failure policy.
 
 Raw upstream logs can contain SDP, ICE passwords and local addresses. They stay
 in `work/transport-build/` and are never uploaded by CI. The script prints test

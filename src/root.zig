@@ -26,6 +26,8 @@ pub const TransportSession = @import("transport/Session.zig");
 pub const FrameSink = @import("transport/FrameSink.zig");
 pub const Outbox = @import("transport/Outbox.zig").Outbox;
 pub const outbound = @import("transport/Outbox.zig");
+pub const Inbox = @import("transport/Inbox.zig").Inbox;
+pub const inbound = @import("transport/Inbox.zig");
 pub const cli = @import("operator/cli.zig");
 
 test {
@@ -37,4 +39,5 @@ test {
     _ = @import("registry/palette_test.zig");
     _ = @import("transport/framing_test.zig");
     _ = @import("transport/outbox_test.zig");
+    _ = @import("transport/inbox_test.zig");
 }

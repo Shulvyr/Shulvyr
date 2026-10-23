@@ -44,7 +44,9 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound
   snapshots and bounds queue admission, provider buffering observations and
-  per-pump work through a scoped `FrameSink`. See [transport contracts](transport.md)
+  per-pump work through a scoped `FrameSink`. `transport/Inbox.zig` reserves
+  callback snapshot capacity before allocation and keeps it through owner leases.
+  See [transport contracts](transport.md)
   for limits, ownership, error policy and oracle evidence.
 - `foundation/binary.zig` borrows input and output buffers. Failed reads restore
   the cursor, failed writes preserve the destination. Variable integers are
