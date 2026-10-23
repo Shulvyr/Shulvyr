@@ -3,10 +3,11 @@
 The foundation uses Zig 0.17.0 and the Zig standard library. There are no external
 Zig packages or runtime libraries. The build rejects other compiler versions.
 
-Behavior ports use pinned PocketMine-MP fixtures, with
-[Axolotl-PM](https://github.com/axolotl-pm/PocketMine-MP) and
-[Altay](https://github.com/altayofficial/Altay) checked for maintained behavior and
-fixes. Compare [Endstone](https://github.com/EndstoneMC/endstone),
+Behavior ports use [Axolotl-PM's default branch](https://github.com/axolotl-pm/PocketMine-MP/tree/stable)
+as the maintained PocketMine baseline. Resolve the latest branch heads before
+porting each subsystem and record the tested revisions with its fixtures.
+Compare [Altay](https://github.com/altayofficial/Altay),
+[Endstone](https://github.com/EndstoneMC/endstone),
 [Dragonfly](https://github.com/df-mc/dragonfly) and relevant projects from the
 [Bedrock Wiki catalog](https://wiki.bedrock.dev/servers/server-software#active-software)
 when designing each subsystem. Preserve the selected behavior in differential

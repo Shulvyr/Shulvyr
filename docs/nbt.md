@@ -6,29 +6,20 @@ Network integers and collection lengths use signed ZigZag VarInts. Network
 string lengths use unsigned VarInts. Shorts, floats and doubles retain fixed
 little-endian encoding in network format.
 
-The reference is the package set in
-[PocketMine-MP 6a7cc02](https://github.com/pmmp/PocketMine-MP/blob/6a7cc02e9dff59b69241aa0bcffdb9903ce86beb/composer.lock):
+Use [Axolotl-PM's default branch](https://github.com/axolotl-pm/PocketMine-MP/tree/stable)
+as the maintained PocketMine behavior reference. Refresh NBT oracle sources from
+their default branches and record the commits used to generate fixtures.
 
-| Oracle | Pinned source |
-| --- | --- |
-| NBT 1.2.0 | [51b8d6a](https://github.com/pmmp/NBT/tree/51b8d6a97065fb93e0b4f660b65164b6e1ed2fff) |
-| BinaryUtils 0.2.7 | [14c044a](https://github.com/pmmp/BinaryUtils/tree/14c044afa33cb581b4a6d1ea04a87e0bc99e824b) |
-| BedrockProtocol 58.0.1 | [8eb5a39](https://github.com/pmmp/BedrockProtocol/blob/8eb5a390a8d913ee54b97ac71f42899ecbb5c419/src/serializer/NetworkNbtSerializer.php) |
+| Oracle | Default branch | Fixture revision |
+| --- | --- | --- |
+| [NBT](https://github.com/pmmp/NBT) | `stable` | [5429a21](https://github.com/pmmp/NBT/tree/5429a21c9321eb154f7fcdaa789d2b5ccbcc6ea3) |
+| [BinaryUtils](https://github.com/pmmp/BinaryUtils) | `stable` | [14c044a](https://github.com/pmmp/BinaryUtils/tree/14c044afa33cb581b4a6d1ea04a87e0bc99e824b) |
+| [Axolotl-PM BedrockProtocol](https://github.com/axolotl-pm/BedrockProtocol) | `master` | [59e4866](https://github.com/axolotl-pm/BedrockProtocol/tree/59e48666b9ca82bdc8c60c518438e2fc3f5e1b60) |
 
 These LGPL-3.0 libraries are development-only oracles. Their source and runtime
 are not included in the Zig package. The fixture generator calls their public
 serializers with synthetic data. The checked-in wire bytes are not produced by
 the Zig codec.
-
-The package lock in [Axolotl-PM a550eea](https://github.com/axolotl-pm/PocketMine-MP/blob/a550eea48212504f95b824eb3a1d67fc3b7f1861/composer.lock)
-uses the same NBT and BinaryUtils revisions. Its
-[network serializer](https://github.com/axolotl-pm/BedrockProtocol/blob/7ff605d5b071d46c694d2b71bc8af4514156dbc2/src/serializer/NetworkNbtSerializer.php)
-is identical to the pinned PMMP serializer. The tag set also agrees with
-[Altay NBT 1.3.0](https://github.com/altayofficial/NBT/blob/2b1399b905db2937478435d596417c47e4120437/src/NBT.php)
-and [Endstone's NBT types](https://github.com/EndstoneMC/endstone/blob/bb0475b64744106b328238b3f51d77576ddc6569/include/endstone/nbt/type.h).
-[Dragonfly's level.dat adapter](https://github.com/df-mc/dragonfly/blob/1793369709ceed934675d69e86ff6c828e4216c8/server/world/mcdb/leveldat/level_dat.go)
-keeps its file header separate from the little-endian NBT payload. These source
-checks inform the scope here. They are not additional runtime conformance tests.
 
 ## Ownership and representation
 
@@ -90,19 +81,24 @@ nested compounds. Tests assert decoded values and byte-for-byte encoding, with
 cross-format checks against the independent oracle bytes. Separate malformed
 cases exercise truncation, budgets, tree validation and allocation failure.
 
-The manifest stores the oracle revisions, SHA-256 of the generator containing
-the synthetic input definition, and each output's size and SHA-256. Verify it:
+The manifest stores each oracle's repository, default branch and exact revision,
+SHA-256 of the generator containing the synthetic input definition, and each
+output's size and SHA-256. Verify it:
 
 ```sh
 python tools/check_nbt_fixtures.py
 ```
 
-To regenerate, use Git and 64-bit PHP 8.4 or newer. Start with clean checkouts at
-the exact revisions above. No Composer install or dependency scripts are needed.
+To refresh, fetch each source's default branch and review changes to its
+serializers and dependencies. Update the revisions in the generator and this
+document, then regenerate fixtures and inspect their byte changes.
+
+To reproduce recorded fixtures, use Git and 64-bit PHP 8.4 or newer with clean
+checkouts at the exact revisions above. No Composer install or dependency scripts are needed.
 For example, with those checkouts under the ignored `work/nbt-reference` folder:
 
 ```sh
-php tools/generate_nbt_fixtures.php work/nbt-reference/NBT work/nbt-reference/BinaryUtils work/nbt-reference/BedrockProtocol
+php tools/generate_nbt_fixtures.php work/nbt-reference/NBT work/nbt-reference/BinaryUtils work/nbt-reference/AxolotlBedrockProtocol
 python tools/check_nbt_fixtures.py
 zig build test --summary all
 ```

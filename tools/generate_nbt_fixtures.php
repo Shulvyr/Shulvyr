@@ -26,9 +26,21 @@ if (PHP_VERSION_ID < 80400 || PHP_INT_SIZE !== 8 || $argc !== 4) {
 }
 
 $sources = [
-    'NBT' => ['revision' => '51b8d6a97065fb93e0b4f660b65164b6e1ed2fff', 'prefix' => 'pocketmine\\nbt\\', 'directory' => $argv[1]],
-    'BinaryUtils' => ['revision' => '14c044afa33cb581b4a6d1ea04a87e0bc99e824b', 'prefix' => 'pocketmine\\utils\\', 'directory' => $argv[2]],
-    'BedrockProtocol' => ['revision' => '8eb5a390a8d913ee54b97ac71f42899ecbb5c419', 'prefix' => 'pocketmine\\network\\mcpe\\protocol\\', 'directory' => $argv[3]],
+    'NBT' => [
+        'repository' => 'https://github.com/pmmp/NBT', 'branch' => 'stable',
+        'revision' => '5429a21c9321eb154f7fcdaa789d2b5ccbcc6ea3',
+        'prefix' => 'pocketmine\\nbt\\', 'directory' => $argv[1],
+    ],
+    'BinaryUtils' => [
+        'repository' => 'https://github.com/pmmp/BinaryUtils', 'branch' => 'stable',
+        'revision' => '14c044afa33cb581b4a6d1ea04a87e0bc99e824b',
+        'prefix' => 'pocketmine\\utils\\', 'directory' => $argv[2],
+    ],
+    'BedrockProtocol' => [
+        'repository' => 'https://github.com/axolotl-pm/BedrockProtocol', 'branch' => 'master',
+        'revision' => '59e48666b9ca82bdc8c60c518438e2fc3f5e1b60',
+        'prefix' => 'pocketmine\\network\\mcpe\\protocol\\', 'directory' => $argv[3],
+    ],
 ];
 
 function gitOutput(string $directory, array $arguments): string {
@@ -64,7 +76,7 @@ spl_autoload_register(static function (string $class) use ($sources): void {
     throw new RuntimeException('Unexpected oracle dependency: ' . $class);
 });
 
-// Synthetic input, shared by all three independent upstream serializers.
+// Synthetic input, shared by the three upstream serializers.
 $root = new TreeRoot(CompoundTag::create()
     ->setTag('byte', new ByteTag(-128))
     ->setTag('short', new ShortTag(-32768))
@@ -92,8 +104,10 @@ if (!is_dir($directory) && !mkdir($directory, 0777, true)) {
     throw new RuntimeException('Cannot create fixture directory');
 }
 $manifest = [
-    'schema' => 1,
-    'sources' => array_map(static fn(array $source): string => $source['revision'], $sources),
+    'schema' => 2,
+    'sources' => array_map(static fn(array $source): array => [
+        'repository' => $source['repository'], 'branch' => $source['branch'], 'revision' => $source['revision'],
+    ], $sources),
     'generator_sha256' => hash_file('sha256', __FILE__),
     'files' => [],
 ];

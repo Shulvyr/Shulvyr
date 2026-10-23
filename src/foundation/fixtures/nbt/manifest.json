@@ -1,11 +1,23 @@
 {
-    "schema": 1,
+    "schema": 2,
     "sources": {
-        "NBT": "51b8d6a97065fb93e0b4f660b65164b6e1ed2fff",
-        "BinaryUtils": "14c044afa33cb581b4a6d1ea04a87e0bc99e824b",
-        "BedrockProtocol": "8eb5a390a8d913ee54b97ac71f42899ecbb5c419"
+        "NBT": {
+            "repository": "https://github.com/pmmp/NBT",
+            "branch": "stable",
+            "revision": "5429a21c9321eb154f7fcdaa789d2b5ccbcc6ea3"
+        },
+        "BinaryUtils": {
+            "repository": "https://github.com/pmmp/BinaryUtils",
+            "branch": "stable",
+            "revision": "14c044afa33cb581b4a6d1ea04a87e0bc99e824b"
+        },
+        "BedrockProtocol": {
+            "repository": "https://github.com/axolotl-pm/BedrockProtocol",
+            "branch": "master",
+            "revision": "59e48666b9ca82bdc8c60c518438e2fc3f5e1b60"
+        }
     },
-    "generator_sha256": "065cc020cefe4746527e073e3f030ce855d678d31ad484dba663123dae6748d2",
+    "generator_sha256": "cb237d0efd8e19e97fb797ebc49fa1850fe1887f13defc28141315ed6eb3069e",
     "files": {
         "all-tags.big.nbt": {
             "bytes": 218,
