@@ -30,7 +30,9 @@ data set without checking the required packet definitions and data changes.
 ## Reproduce
 
 Use x86_64 Windows or Linux, CPython 3.14, Git, CMake, Perl and the pinned Zig
-compiler. Windows requires Visual Studio 2022 C++ Build Tools and a Windows SDK.
+compiler. Windows requires Visual Studio 2022 or 2026 C++ Build Tools and a
+Windows SDK. Visual Studio 2026 needs CMake 4.2 or newer. The script uses
+`vswhere` to select the installed supported compiler.
 Linux requires Ninja and a C/C++ compiler. The script does not install system
 tools or change global configuration.
 
@@ -47,7 +49,9 @@ Use `--zig PATH` if the compiler is not on PATH. Sources and build outputs must
 stay under ignored `work/`. Existing source checkouts must match their exact
 revisions and have no local changes. The script fetches only the repositories
 and submodules in [sources.json](../tools/native-transport/sources.json), checks
-their revisions and verifies the C header's SHA-256. It refuses mismatches.
+their revisions and verifies the C header's LF Git-blob SHA-256. CRLF checkout
+line endings are normalized for this text hash. Other byte changes, including
+trailing bytes, are rejected.
 
 The build enables Mbed TLS `MBEDTLS_SSL_DTLS_SRTP` and uses the same installed
 configuration headers for libdatachannel. Media, WebSockets and examples are
@@ -80,8 +84,9 @@ outlive channel/peer deletion and the blocking `rtcCleanup` call. Never call
 cleanup from a callback or wait for owner work from a callback.
 
 Raw upstream logs can contain SDP, ICE passwords and local addresses. They stay
-in `work/transport-build/` and are never uploaded by CI. The script prints only
-test counts and phase results. Local `evidence.json` records source revisions,
+in `work/transport-build/` and are never uploaded by CI. The script prints test
+counts, phase results and build diagnostics on failure, keeping raw test output
+private. Local `evidence.json` records source revisions,
 tool versions, the resulting library hash and passed probe modes.
 
 ## Dependency review

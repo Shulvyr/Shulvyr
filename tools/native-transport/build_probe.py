@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import platform
 import re
 import shutil
@@ -17,7 +18,7 @@ HERE = Path(__file__).resolve().parent
 
 
 def run(arguments: list[str], *, cwd: Path = ROOT, log: Path | None = None,
-        timeout: int = 600) -> str:
+        timeout: int = 600, private: bool = False) -> str:
     result = subprocess.run(arguments, cwd=cwd, capture_output=True, text=True,
                             encoding="utf-8", errors="replace", timeout=timeout)
     output = result.stdout + result.stderr
@@ -25,6 +26,14 @@ def run(arguments: list[str], *, cwd: Path = ROOT, log: Path | None = None,
         log.write_text(output, encoding="utf-8")
     if result.returncode:
         # Native tests print SDP and ICE credentials. Keep all raw output local.
+        if log is not None and not private:
+            diagnostic = "\n".join(output.splitlines()[-40:])
+            diagnostic = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", diagnostic)
+            print(diagnostic, flush=True)
+        if private:
+            for line in output.splitlines():
+                if re.fullmatch(r"(?:transport cycle \d+|callback probe) failed: [A-Za-z0-9_]+", line):
+                    print(line, flush=True)
         location = f", see {log}" if log else ""
         raise RuntimeError(f"{Path(arguments[0]).name} failed with exit {result.returncode}{location}")
     return output.strip()
@@ -36,6 +45,22 @@ def owned_path(path: Path) -> Path:
     if not destination.is_relative_to(private) or destination == private:
         raise ValueError("Native probe output and sources must be inside work/")
     return destination
+
+
+def verify_header(data: bytes, expected: str) -> None:
+    # Git may expand text line endings during a Windows checkout. The manifest
+    # pins the LF Git blob, retaining every other byte including the final LF.
+    actual = hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+    if actual != expected:
+        raise ValueError("C API header checksum mismatch")
+
+
+def visual_studio_generator(installation_version: str) -> str:
+    major = installation_version.split(".", 1)[0]
+    generators = {"17": "Visual Studio 17 2022", "18": "Visual Studio 18 2026"}
+    if major not in generators:
+        raise ValueError("Native probe requires Visual Studio 2022 or 2026 C++ Build Tools")
+    return generators[major]
 
 
 def verify_checkout(path: Path, revision: str, hooks: Path) -> None:
@@ -106,10 +131,16 @@ def main() -> None:
     print("Verify pinned native sources", flush=True)
     native = prepare_source("libdatachannel", manifest["libdatachannel"], sources, hooks)
     tls = prepare_source("mbedtls", manifest["mbedtls"], sources, hooks)
-    header_hash = hashlib.sha256((native / "include/rtc/rtc.h").read_bytes()).hexdigest()
-    if header_hash != manifest["libdatachannel"]["header_sha256"]:
-        raise ValueError("C API header checksum mismatch")
-    generator = ["-G", "Visual Studio 17 2022", "-A", "x64"] if system == "Windows" else ["-G", "Ninja"]
+    verify_header((native / "include/rtc/rtc.h").read_bytes(),
+                  manifest["libdatachannel"]["header_lf_sha256"])
+    if system == "Windows":
+        vswhere = Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "Microsoft Visual Studio/Installer/vswhere.exe"
+        installed = run([str(vswhere), "-latest", "-products", "*", "-version", "[17.0,19.0)",
+                         "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                         "-property", "installationVersion"])
+        generator = ["-G", visual_studio_generator(installed), "-A", "x64"]
+    else:
+        generator = ["-G", "Ninja"]
     suffix = "msvc" if system == "Windows" else "linux"
     tls_build = output / f"mbedtls-{suffix}"
     tls_prefix = output / "mbedtls-install"
@@ -138,17 +169,19 @@ def main() -> None:
     run([cmake, "--install", str(native_build), "--config", "Release"], log=output / "native-install.log")
     print("Run upstream native tests with private raw logs", flush=True)
     vendor_tests = native_build / "Release/tests.exe" if system == "Windows" else native_build / "tests"
-    vendor_output = run([str(vendor_tests)], cwd=output, log=output / "native-tests.log", timeout=180)
+    vendor_output = run([str(vendor_tests)], cwd=output, log=output / "native-tests.log", timeout=180, private=True)
     # Upstream main returns zero even when a test fails. Check its summary too.
     match = re.search(r"Finished (\d+) tests in .*Succeeded: (\d+)\. Failed: (\d+)\.", vendor_output)
     if match is None or int(match[1]) == 0 or match[1] != match[2] or match[3] != "0":
+        if match is not None:
+            print(f"Upstream native tests: {match[2]} passed, {match[3]} failed", flush=True)
         raise RuntimeError(f"Native test summary failed, inspect {output / 'native-tests.log'}")
     print(f"Upstream native tests passed: {match[1]}", flush=True)
     for optimize in ("debug", "safe"):
         print(f"Run Zig C API probe: {optimize}", flush=True)
         probe_output = run([zig, "build", "test-native-transport", f"-Dnative-transport-prefix={prefix}",
                             f"-Doptimize={optimize}", "--summary", "all"],
-                           log=output / f"probe-{optimize}.log", timeout=300)
+                           log=output / f"probe-{optimize}.log", timeout=300, private=True)
         expected = {"cycles": 3, "binary_messages": 384, "deletion_barriers": 3,
                     "cancelled_offers": 16, "callback_boundary_checks": 4}
         summaries = [json.loads(line) for line in probe_output.splitlines() if line.startswith('{"cycles":')]
@@ -156,7 +189,7 @@ def main() -> None:
             raise RuntimeError("Zig native probe did not report its expected checks")
     library = prefix / ("bin/datachannel.dll" if system == "Windows" else "lib/libdatachannel.so")
     evidence = {"system": system, "zig": required_zig, "sources": manifest,
-                "cmake": run([cmake, "--version"]).splitlines()[0],
+                "cmake": run([cmake, "--version"]).splitlines()[0], "generator": generator[1],
                 "library_sha256": hashlib.sha256(library.read_bytes()).hexdigest(),
                 "upstream_tests": int(match[1]), "zig_probes": ["debug", "safe"]}
     (output / "evidence.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")

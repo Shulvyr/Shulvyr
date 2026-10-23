@@ -5,7 +5,7 @@
     "revision": "bdc5ff28e9d3b863144c94a677ecf5bf043aaf15",
     "version": "0.24.6",
     "license": "MPL-2.0",
-    "header_sha256": "147912c78d321fdf6bb02a32dcc92abb3ac1110c7da1a6bddee42862c49a302b",
+    "header_lf_sha256": "ef9fbb59fbe9f99d7b0cf15812609e992c1f62625b14135d3a4827a9b62f86c3",
     "submodules": {
       "deps/plog": {
         "repository": "https://github.com/SergiusTheBest/plog.git",
