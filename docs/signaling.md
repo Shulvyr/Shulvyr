@@ -3,6 +3,7 @@
 `Signal` parses and writes the text envelope used by LAN and message-based
 NetherNet signaling. It has no sockets, peer registry, authentication or SDP
 validation. The optional [WebRTC adapter](native-transport.md) remains separate.
+The [SDP boundary](sdp.md) provides structural parsing and transformations.
 The HTTP onboarding path has its own request and identity contracts.
 
 ## Wire behavior
@@ -47,7 +48,7 @@ the checked-in expected bytes.
 
 ```sh
 php tools/generate_signaling_fixtures.php PATH_TO_NETHERNET
-python tools/check_signaling_fixtures.py
+zig build check-transport-fixtures --summary all
 zig build test --summary all
 ```
 

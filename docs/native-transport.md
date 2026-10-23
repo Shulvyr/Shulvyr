@@ -5,6 +5,16 @@ manager. The loopback probe uses that same adapter. The standalone server still
 has no native runtime dependency, signaling endpoint, authentication or game
 packets. Native integration remains a candidate pending the production gates below.
 
+Shulvyr prefers a first-party Zig transport. This optional native backend checks
+the connection contracts while that implementation is absent. Its types stay
+outside the core FrameSink, Inbox and manager interfaces. It must remain
+replaceable without adopting another server's runtime or architecture.
+
+Native source revisions, hashes, build settings and licenses are recorded, but
+the build still fetches source from external repositories. A complete recovery
+archive or maintained source mirror is required before a production backend
+depends on it. Pinning a revision alone does not provide offline recovery.
+
 ## Reference and scope
 
 Mojang's [NetherNet guide](https://mojang.github.io/bedrock-protocol-docs/guides/nether-net-onboarding-guide/)
@@ -59,7 +69,10 @@ ambiguity remains a provider gate.
 
 Description APIs use full ICE, bounded caller storage and one local/remote
 description exchange. Remote input rejects empty, oversized and embedded-null
-strings before native parsing. Local output rejects overlap with the context,
+strings before native parsing. The [Zig SDP boundary](sdp.md) validates structure
+and refuses any remaining identity attribute before the C API call. This does
+not verify identity. The caller must apply identity policy before creating the
+peer and strip the verified assertion. Local output rejects overlap with the context,
 connection metadata or its receive buffers. SDP contains ICE credentials and
 must stay out of logs. The caller validates identity and supplies stripped SDP
 before starting real negotiation. This adapter does not implement identity policy.

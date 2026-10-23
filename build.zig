@@ -64,6 +64,20 @@ pub fn build(b: *std.Build) void {
     invalid.expectStdErrEqual("error: InvalidValue\n");
     test_step.dependOn(&invalid.step);
 
+    const fixture_module = b.createModule(.{
+        .root_source_file = b.path("tools/check_transport_fixtures.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const fixture_checker = b.addExecutable(.{ .name = "check-transport-fixtures", .root_module = fixture_module });
+    const check_fixtures = b.addRunArtifact(fixture_checker);
+    check_fixtures.setCwd(b.path("."));
+    check_fixtures.has_side_effects = true;
+    const fixture_step = b.step("check-transport-fixtures", "Verify signaling and SDP fixtures using Zig");
+    fixture_step.dependOn(&check_fixtures.step);
+    const fixture_tests = b.addTest(.{ .root_module = fixture_module });
+    fixture_step.dependOn(&b.addRunArtifact(fixture_tests).step);
+
     const transport_test = b.step("test-native-transport", "Run the optional native WebRTC C API probe");
     if (b.option([]const u8, "native-transport-prefix", "Prefix produced by tools/native-transport/build_probe.py")) |prefix| {
         const api = b.addTranslateC(.{

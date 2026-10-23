@@ -314,6 +314,14 @@ pub fn Peer(comptime receive_capacity: usize, comptime discovery_capacity: usize
             if (text.len == 0) return error.EmptyDescription;
             if (text.len > self.config.max_description_bytes) return error.DescriptionTooLarge;
             if (std.mem.indexOfScalar(u8, text, 0) != null) return error.EmbeddedNull;
+            var lines: [core.SessionDescription.max_lines][]const u8 = undefined;
+            const description = try core.SessionDescription.parse(text, &lines, .{
+                .text_bytes = self.config.max_description_bytes,
+                .line_bytes = self.config.max_description_bytes,
+            });
+            try description.validate();
+            var identities = description.attributes("identity", .all);
+            if (identities.next() != null) return error.IdentityNotStripped;
             try check(c.rtcSetRemoteDescription(self.peer, text.ptr, @tagName(kind)));
             self.remote_set = true;
         }
@@ -568,18 +576,33 @@ test "WebRTC native state distinguishes terminal failure from temporary disconne
 }
 
 test "WebRTC description limits, embedded null and output aliases reject before native parsing" {
-    var fixture: TestFixture = .{};
-    try fixture.init(.{ .max_description_bytes = 8 });
-    defer fixture.deinit();
-    try std.testing.expectError(error.EmbeddedNull, fixture.peer.start(.answerer, "127\x00.0"));
-    try fixture.peer.start(.answerer, "127.0.0.1");
-    try std.testing.expectError(error.EmptyDescription, fixture.peer.setRemoteDescription("", .offer));
-    try std.testing.expectError(error.DescriptionTooLarge, fixture.peer.setRemoteDescription("123456789", .offer));
-    try std.testing.expectError(error.EmbeddedNull, fixture.peer.setRemoteDescription("v\x00x", .offer));
-    try std.testing.expectError(error.AliasedBuffer, fixture.peer.writeLocalDescription(std.mem.asBytes(&fixture.peer)));
-    const storage = (try fixture.manager.get(fixture.id)).session.receivers[0].storage;
-    try std.testing.expectError(error.AliasedBuffer, fixture.peer.writeLocalDescription(storage));
-    try std.testing.expect(!fixture.peer.remote_set);
+    {
+        var fixture: TestFixture = .{};
+        try fixture.init(.{ .max_description_bytes = 8 });
+        defer fixture.deinit();
+        try std.testing.expectError(error.EmbeddedNull, fixture.peer.start(.answerer, "127\x00.0"));
+        try fixture.peer.start(.answerer, "127.0.0.1");
+        try std.testing.expectError(error.EmptyDescription, fixture.peer.setRemoteDescription("", .offer));
+        try std.testing.expectError(error.DescriptionTooLarge, fixture.peer.setRemoteDescription("123456789", .offer));
+        try std.testing.expectError(error.EmbeddedNull, fixture.peer.setRemoteDescription("v\x00x", .offer));
+        try std.testing.expectError(error.InvalidMediaSections, fixture.peer.setRemoteDescription("v=0", .offer));
+        try std.testing.expectError(error.AliasedBuffer, fixture.peer.writeLocalDescription(std.mem.asBytes(&fixture.peer)));
+        const storage = (try fixture.manager.get(fixture.id)).session.receivers[0].storage;
+        try std.testing.expectError(error.AliasedBuffer, fixture.peer.writeLocalDescription(storage));
+        try std.testing.expect(!fixture.peer.remote_set);
+    }
+    {
+        var fixture: TestFixture = .{};
+        try fixture.init(.{});
+        defer fixture.deinit();
+        try fixture.peer.start(.answerer, "127.0.0.1");
+        const body = "m=application\r\na=ice-ufrag:synthetic\r\na=ice-pwd:synthetic\r\na=setup:actpass\r\na=max-message-size:64\r\na=fingerprint:sha-256 AB\r\n";
+        for ([_][:0]const u8{
+            "v=0\r\na=identity:synthetic\r\n" ++ body,
+            "v=0\r\n" ++ body ++ "a=identity:synthetic\r\n",
+        }) |sdp| try std.testing.expectError(error.IdentityNotStripped, fixture.peer.setRemoteDescription(sdp, .offer));
+        try std.testing.expect(!fixture.peer.remote_set);
+    }
 }
 
 test "WebRTC failed native deletion retains context and handle progress until retry" {

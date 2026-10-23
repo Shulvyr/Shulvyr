@@ -30,6 +30,8 @@ Do not hide a failure with silent fallbacks, swallowed errors, fake fixtures, re
 
 ## 4. Zig, ownership, and concurrency contracts
 
+- Implement the server and new first-party maintenance tools in Zig. Keep reference-language oracle regeneration optional, outside the normal build and test path. Reference projects provide evidence, not runtime services or required upstream availability.
+- Minimize third-party runtime dependencies. Before adding an exception, record why it is needed, its boundary, pinned source and license, maintenance/recovery route and replacement contract. Own the protocol and gameplay logic. Keep experimental native backends optional until their production gates are met.
 - Use the compiler and dependency versions actually pinned by the project. Verify version-specific APIs and build-mode names against that toolchain. Do not copy tutorial commands without checking them.
 - State allocation ownership and lifetime at module boundaries. Handle allocation failure deliberately. Buffers used asynchronously must outlive their consumer. Tick/job arenas cannot back longer-lived references.
 - Mutable world state belongs to its owner execution context. Network callbacks and worker threads communicate through bounded queues and immutable jobs/results. Validate world/session identity, generation, and revision before applying results.

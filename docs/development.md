@@ -17,7 +17,7 @@ when designing each subsystem. Preserve the selected behavior in differential
 tests and record intentional deviations beside that subsystem's contract.
 
 ```sh
-zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig
+zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig tools/check_transport_fixtures.zig
 zig build
 zig build test --summary all
 zig build test -Doptimize=safe --summary all
@@ -27,7 +27,7 @@ python tools/generate_registries.py --check
 python tools/check_registry_fixtures.py
 python tools/check_block_fixtures.py
 python tools/check_framing_fixtures.py
-python tools/check_signaling_fixtures.py
+zig build check-transport-fixtures --summary all
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 ```
@@ -40,10 +40,32 @@ zig build -Dtarget=x86_64-linux-musl -Doptimize=safe
 zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
 ```
 
+## Dependencies and tools
+
+Shulvyr owns its server, protocol and gameplay implementations. Reference
+projects provide behavior evidence and frozen test data. Building the default
+server does not fetch or run those projects. Their development stopping must
+not determine Shulvyr's ability to build or maintain its own behavior.
+
+Use Zig for new first-party maintenance tools. The signaling/SDP fixture checker
+is Zig and runs without Python or PHP. Older fixture checks, registry generation,
+compiler bootstrap and native-probe build tooling still use Python. Their
+migration is incomplete. Optional oracle regeneration uses the reference's
+language to produce independent evidence, with its revision and output hashes
+recorded. Normal tests consume checked-in bytes without invoking that runtime.
+
+The default executable and core tests use Zig's standard library. The optional
+native WebRTC adapter is a development backend, with a separate C/C++ toolchain
+and dependencies. It is not selected by the server runner. Keep backend APIs
+independent of its types so a Zig implementation can use the same connection
+contracts and tests. See its [remaining production gates](native-transport.md).
+
 ## Module contracts
 
 - `transport/Signal.zig` parses bounded, borrowed signaling text and writes
   canonical envelopes into caller storage. See [signaling text](signaling.md).
+- `transport/sdp/SessionDescription.zig` and `Fingerprint.zig` provide borrowed
+  SDP views and preflighted transformations. See the [SDP boundary](sdp.md).
 - `transport/framing.zig` splits and reassembles bounded NetherNet messages.
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound

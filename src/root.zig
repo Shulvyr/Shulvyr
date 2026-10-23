@@ -36,6 +36,8 @@ pub const ConnectionManager = @import("transport/Manager.zig").Manager;
 pub const connections = @import("transport/Manager.zig");
 pub const transport_buffers = @import("transport/buffer.zig");
 pub const Signal = @import("transport/Signal.zig");
+pub const SessionDescription = @import("transport/sdp/SessionDescription.zig");
+pub const SdpFingerprint = @import("transport/sdp/Fingerprint.zig");
 pub const cli = @import("operator/cli.zig");
 
 test {
@@ -52,4 +54,5 @@ test {
     _ = @import("transport/connection_test.zig");
     _ = @import("transport/manager_test.zig");
     _ = @import("transport/signaling_test.zig");
+    _ = @import("transport/sdp_test.zig");
 }
