@@ -15,5 +15,7 @@
         "tools/zig-downloads.json",
         "tools/check_nbt_fixtures.py",
         "tools/generate_nbt_fixtures.php",
+        "tools/check_math_fixtures.py",
+        "tools/generate_math_fixtures.php",
     },
 }

@@ -7,6 +7,33 @@ pub const Axis = struct {
     local: u4,
 };
 
+pub const BlockPos = struct { x: i32, y: i32, z: i32 };
+pub const SubchunkPos = struct { x: i32, y: i32, z: i32 };
+pub const LocalPos = struct { x: u4, y: u4, z: u4 };
+pub const SubchunkLocation = struct { subchunk: SubchunkPos, local: LocalPos };
+
+pub fn floorToBlock(value: f64) error{ NonFinite, CoordinateOverflow }!i32 {
+    if (!std.math.isFinite(value)) return error.NonFinite;
+    const floored = @floor(value);
+    if (floored < std.math.minInt(i32) or floored > std.math.maxInt(i32)) return error.CoordinateOverflow;
+    return @intFromFloat(floored);
+}
+
+pub fn splitPosition(block: BlockPos) SubchunkLocation {
+    const x = split(block.x);
+    const y = split(block.y);
+    const z = split(block.z);
+    return .{ .subchunk = .{ .x = x.chunk, .y = y.chunk, .z = z.chunk }, .local = .{ .x = x.local, .y = y.local, .z = z.local } };
+}
+
+pub fn joinPosition(location: SubchunkLocation) error{CoordinateOverflow}!BlockPos {
+    return .{
+        .x = try join(.{ .chunk = location.subchunk.x, .local = location.local.x }),
+        .y = try join(.{ .chunk = location.subchunk.y, .local = location.local.y }),
+        .z = try join(.{ .chunk = location.subchunk.z, .local = location.local.z }),
+    };
+}
+
 /// Floor division keeps local coordinates in 0..15 on both sides of zero.
 pub fn split(block: i32) Axis {
     return .{

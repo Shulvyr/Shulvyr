@@ -34,6 +34,8 @@ jobs:
         run: zig fmt --check build.zig build.zig.zon src
       - name: Verify NBT fixtures
         run: python tools/check_nbt_fixtures.py
+      - name: Verify math fixtures
+        run: python tools/check_math_fixtures.py
       - name: Build
         run: zig build -Doptimize=${{ matrix.optimize }}
       - name: Test

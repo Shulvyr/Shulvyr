@@ -1,0 +1,15 @@
+{
+    "schema": 1,
+    "oracle": {
+        "repository": "https://github.com/pmmp/Math",
+        "branch": "stable",
+        "revision": "d74ed5a788092df8e8ec15609b36535ed96587f9"
+    },
+    "generator_sha256": "8edce4a180bf41201bdb8d83325fcb4740f66ff071cb3690cf7dd06f9a9f2c9c",
+    "files": {
+        "conformance.json": {
+            "bytes": 58004,
+            "sha256": "aa1fb04cfa0f1b2348289f346d73de9e2a80c1faa1180a0990ef17dfbcd7f4d0"
+        }
+    }
+}
