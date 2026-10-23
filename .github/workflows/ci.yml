@@ -36,6 +36,12 @@ jobs:
         run: python tools/check_nbt_fixtures.py
       - name: Verify math fixtures
         run: python tools/check_math_fixtures.py
+      - name: Verify registry generation
+        run: python tools/generate_registries.py --check
+      - name: Test registry generator
+        run: python tools/test_registry_codegen.py
+      - name: Test registry compile contracts
+        run: python tools/test_registry_compile.py
       - name: Build
         run: zig build -Doptimize=${{ matrix.optimize }}
       - name: Test

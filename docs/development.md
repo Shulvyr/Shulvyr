@@ -20,6 +20,9 @@ zig build test --summary all
 zig build test -Doptimize=safe --summary all
 python tools/check_nbt_fixtures.py
 python tools/check_math_fixtures.py
+python tools/generate_registries.py --check
+python tools/test_registry_codegen.py
+python tools/test_registry_compile.py
 ```
 
 CI runs these checks on x86_64 Linux and Windows. To compile for another target
@@ -62,6 +65,10 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
 - `math/Vec3.zig`, `math/Aabb.zig` and `math/VoxelRay.zig` provide f64 geometry
   and bounded voxel queries. See [geometry contracts](geometry.md) for precision,
   face ties, boundary behavior, budgets and oracle fixtures.
+- `registry/ResourceKey.zig` validates explicit borrowed namespaced keys.
+  `registry/catalog.zig` provides immutable item and biome identity maps with
+  separate internal and network ID types. See [registry generation](registries.md)
+  for source hashes, schema limits and snapshot scope.
 - `simulation/TickClock.zig` accepts elapsed monotonic nanoseconds. Tick zero is
   due immediately. Catch-up is capped per poll and missed wall-clock deadlines
   are returned as metrics. Logical ticks and pending jobs are not skipped.
@@ -82,7 +89,7 @@ stdout, stderr and exit status.
 
 ## Next boundaries
 
-Registry generation, broader PMMP behavior fixtures,
+Block-state registries, broader PMMP behavior fixtures,
 transport, world state and storage remain separate implementation steps. A
 protocol target and dependency choices still need their client and fixture
 evidence before those subsystems are introduced.

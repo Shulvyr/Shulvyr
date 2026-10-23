@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "source": {
+    "repository": "https://github.com/axolotl-pm/BedrockData",
+    "branch": "master",
+    "revision": "488f81d2ab95841337fb9331efe9d6b74ceddb07",
+    "license": "CC0-1.0"
+  },
+  "files": {
+    "LICENSE": {
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+    },
+    "biome_id_map.json": {
+      "bytes": 2306,
+      "sha256": "f04995f64eaa65289a2ba7af63091c4694b96df7d68f5ae3eab6396f54eb7b71"
+    },
+    "protocol_info.json": {
+      "bytes": 9118,
+      "sha256": "616ae40c73bd693b2ca9ea617b21c9e4ba922d7409e7e6dada9a23b06ffeebda"
+    },
+    "required_item_list.json": {
+      "bytes": 327131,
+      "sha256": "2d7b06dac6b389758b0799e293e54d95a3e28872093612b5101d53ab84faf9b6"
+    }
+  }
+}
