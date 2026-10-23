@@ -1,0 +1,58 @@
+{
+    "source_count": 22091,
+    "source_names": 1477,
+    "network_meta_sha256": "18325edaafa312c535dc42ae61fd189038514e323ee64cde6ad101994b7c8054",
+    "metadata_lookup_sha256": "be59d172a01f3b644fc580195ef6ff2034c2fef5c92cd199ff8ad0df61379134",
+    "synthetic_queries": [
+        {
+            "name": "shulvyr:test",
+            "metadata": 5,
+            "network_id": 2
+        },
+        {
+            "name": "shulvyr:test",
+            "metadata": 9,
+            "network_id": 5
+        },
+        {
+            "name": "shulvyr:test",
+            "metadata": 0,
+            "network_id": null
+        },
+        {
+            "name": "shulvyr:test",
+            "metadata": -1,
+            "network_id": null
+        },
+        {
+            "name": "shulvyr:single",
+            "metadata": 42,
+            "network_id": 7
+        },
+        {
+            "name": "shulvyr:single",
+            "metadata": -42,
+            "network_id": 7
+        },
+        {
+            "name": "shulvyr:single",
+            "metadata": 100,
+            "network_id": 7
+        },
+        {
+            "name": "minecraft:air",
+            "metadata": -1,
+            "network_id": 1
+        },
+        {
+            "name": "shulvyr:limits",
+            "metadata": 999,
+            "network_id": 3
+        },
+        {
+            "name": "shulvyr:missing",
+            "metadata": 0,
+            "network_id": null
+        }
+    ]
+}

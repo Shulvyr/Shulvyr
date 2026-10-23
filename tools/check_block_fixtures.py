@@ -30,7 +30,7 @@ def main() -> None:
     inputs = json.loads((directory / "input.json").read_bytes())
     if not 0 < len(inputs["cases"]) <= 64:
         raise ValueError("Block fixtures require bounded cases")
-    expected_files = {"input.json", "expected.json"} | {f"case-{index}.network.nbt" for index in range(len(inputs["cases"]))}
+    expected_files = {"input.json", "expected.json", "dictionary.json", "dictionary.network.nbt"} | {f"case-{index}.network.nbt" for index in range(len(inputs["cases"]))}
     if set(manifest["files"]) != expected_files or {path.name for path in directory.iterdir()} != expected_files | {"manifest.json"}:
         raise ValueError("Block fixture files differ from manifest")
     for name, expected in manifest["files"].items():
@@ -44,6 +44,9 @@ def main() -> None:
         raise ValueError("Palette bytes differ from the data manifest")
     if manifest["data_source"] != data_manifest["source"] or digest != manifest["palette_sha256"]:
         raise ValueError("Block fixtures use a different palette snapshot")
+    metadata = (root / "data/bedrock/block_state_meta_map.json").read_bytes()
+    if hashlib.sha256(metadata).hexdigest() != manifest["metadata_sha256"] or data_manifest["files"]["block_state_meta_map.json"] != {"bytes": len(metadata), "sha256": manifest["metadata_sha256"]}:
+        raise ValueError("Block fixtures use a different metadata snapshot")
     expected = json.loads((directory / "expected.json").read_bytes())
     if len(expected["cases"]) != len(inputs["cases"]) or len(expected["equalities"]) != len(inputs["equality_pairs"]):
         raise ValueError("Missing block oracle answers")

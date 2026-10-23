@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INPUTS = {"required_item_list.json", "biome_id_map.json", "protocol_info.json", "canonical_block_states.nbt", "LICENSE"}
+INPUTS = {"required_item_list.json", "biome_id_map.json", "protocol_info.json", "canonical_block_states.nbt", "block_state_meta_map.json", "LICENSE"}
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_PALETTE_BYTES = 8 * 1024 * 1024
 MAX_ENTRIES = 65_536
@@ -88,6 +88,12 @@ def verify_mapping(rows: list[tuple[str, int]], required: list[str]) -> None:
             raise ValueError(f"Missing required registry mapping: {name}")
 
 
+def parse_metadata(data) -> list[int]:
+    if not isinstance(data, list) or len(data) > MAX_ENTRIES:
+        raise ValueError("State metadata must be a bounded list")
+    return [integer(value, -(2**31), 2**31 - 1) for value in data]
+
+
 def load_inputs(root: Path) -> tuple[dict, dict]:
     directory = root / "data/bedrock"
     manifest = read_json((directory / "manifest.json").read_bytes())
@@ -120,6 +126,7 @@ def load_inputs(root: Path) -> tuple[dict, dict]:
 def render(manifest: dict, files: dict, generator_hash: str) -> bytes:
     items = parse_rows(read_json(files["required_item_list.json"]), "item")
     biomes = parse_rows(read_json(files["biome_id_map.json"]), "biome")
+    parse_metadata(read_json(files["block_state_meta_map.json"]))
     verify_mapping(items, ["minecraft:air", "minecraft:stone"])
     verify_mapping(biomes, ["minecraft:ocean", "minecraft:plains"])
     version = read_json(files["protocol_info.json"])["version"]

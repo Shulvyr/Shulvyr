@@ -10,6 +10,12 @@ import generate_registries as generator
 
 
 class RegistryCodegenTest(unittest.TestCase):
+    def test_state_metadata_schema_preserves_signed_i32_values(self):
+        self.assertEqual([-(2**31), 0, 509, 2**31 - 1], generator.parse_metadata([-(2**31), 0, 509, 2**31 - 1]))
+        for value in ({}, [True], [1.0], ["1"], [-(2**31)-1], [2**31]):
+            with self.assertRaises(ValueError):
+                generator.parse_metadata(value)
+
     def item(self, value=7, **changes):
         return {"runtime_id": value, "component_based": False, "version": 2, **changes}
 

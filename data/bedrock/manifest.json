@@ -15,6 +15,10 @@
       "bytes": 2306,
       "sha256": "f04995f64eaa65289a2ba7af63091c4694b96df7d68f5ae3eab6396f54eb7b71"
     },
+    "block_state_meta_map.json": {
+      "bytes": 178603,
+      "sha256": "185041be73223168ebdd746424484635516c2cce3762d00413cd5469a0e66c48"
+    },
     "canonical_block_states.nbt": {
       "bytes": 3102889,
       "sha256": "f0784a6284d6ca7d98cc3472f4ce84241a11e11b18ed16f6591dfd5e6da6fbd6"

@@ -80,6 +80,9 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
 - `registry/BlockState.zig` extracts bounded typed properties from NBT, retains
   the state version separately and produces canonical property dictionary keys.
   States borrow the encoded input after temporary nodes are freed.
+- `registry/BlockPalette.zig` builds immutable block mappings with separate
+  lifetime-checked internal IDs, network runtime IDs and metadata. It borrows
+  the source palette, copies metadata and owns bounded lookup storage.
 - `simulation/TickClock.zig` accepts elapsed monotonic nanoseconds. Tick zero is
   due immediately. Catch-up is capped per poll and missed wall-clock deadlines
   are returned as metrics. Logical ticks and pending jobs are not skipped.
@@ -102,7 +105,7 @@ stdout, stderr and exit status.
 
 ## Next boundaries
 
-Block-state registries, broader PMMP behavior fixtures,
+Protocol binding for registries, broader PMMP behavior fixtures,
 transport, world state and storage remain separate implementation steps. A
 protocol target and dependency choices still need their client and fixture
 evidence before those subsystems are introduced.

@@ -4,7 +4,7 @@ const nbt = @import("../foundation/nbt.zig");
 const equal = std.testing.expectEqual;
 const allocator = std.testing.allocator;
 const fixtures = blk: {
-    var result: [11][]const u8 = undefined;
+    var result: [14][]const u8 = undefined;
     for (0..result.len) |index| result[index] = @embedFile(std.fmt.comptimePrint("fixtures/blocks/case-{d}.network.nbt", .{index}));
     break :blk result;
 };

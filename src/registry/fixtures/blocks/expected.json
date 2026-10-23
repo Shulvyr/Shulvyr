@@ -198,6 +198,50 @@
             "accepted": false,
             "state": null,
             "property_key_hex": null
+        },
+        {
+            "file": "case-11.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:test",
+                "version": 1,
+                "properties": []
+            },
+            "property_key_hex": ""
+        },
+        {
+            "file": "case-12.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:single",
+                "version": 1,
+                "properties": [
+                    {
+                        "name": "x",
+                        "kind": "int",
+                        "number": 0,
+                        "text": null
+                    }
+                ]
+            },
+            "property_key_hex": "0a0000030100780000000000"
+        },
+        {
+            "file": "case-13.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:single",
+                "version": 2,
+                "properties": [
+                    {
+                        "name": "x",
+                        "kind": "int",
+                        "number": 1,
+                        "text": null
+                    }
+                ]
+            },
+            "property_key_hex": "0a0000030100780100000000"
         }
     ],
     "equalities": [

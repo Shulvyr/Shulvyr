@@ -10,6 +10,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\convert\BlockStateDictionaryEntry;
+use pocketmine\network\mcpe\convert\BlockStateDictionary;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 
 if (PHP_VERSION_ID < 80400 || PHP_INT_SIZE !== 8 || $argc !== 5) {
@@ -122,6 +123,12 @@ if (hash_file('sha256', $palettePath) !== $dataManifest['files']['canonical_bloc
     throw new RuntimeException('Palette input hash or byte limit mismatch');
 }
 $palette = file_get_contents($palettePath);
+$metadataPath = $dataDirectory . '/block_state_meta_map.json';
+if (hash_file('sha256', $metadataPath) !== $dataManifest['files']['block_state_meta_map.json']['sha256']) {
+    throw new RuntimeException('Metadata input hash mismatch');
+}
+$metadata = json_decode(file_get_contents($metadataPath), true, 16, JSON_THROW_ON_ERROR);
+$dictionaryEntries = [];
 $offset = 0;
 $count = 0;
 $propertyCount = 0;
@@ -138,6 +145,10 @@ while ($offset < strlen($palette)) {
         throw new RuntimeException('Palette root bounds');
     }
     normalized($state);
+    if (!isset($metadata[$count - 1]) || !is_int($metadata[$count - 1])) {
+        throw new RuntimeException('Missing or invalid state metadata');
+    }
+    $dictionaryEntries[] = new BlockStateDictionaryEntry($state->getName(), $state->getStates(), $metadata[$count - 1]);
     $name = $state->getName();
     $properties = BlockStateDictionaryEntry::encodeStateProperties($state->getStates());
     hash_update($semantic, pack('V', strlen($name)) . $name . pack('V', strlen($properties)) . $properties);
@@ -151,7 +162,53 @@ if (file_put_contents($directory . '/expected.json', $output) !== strlen($output
     throw new RuntimeException('Cannot write block expectations');
 }
 $files[] = 'expected.json';
-$manifest = ['schema' => 1, 'oracles' => array_map(static fn(array $source): array => ['repository' => $source['repository'], 'branch' => $source['branch'], 'revision' => $source['revision']], $sources), 'data_source' => $dataManifest['source'], 'palette_sha256' => hash('sha256', $palette), 'generator_sha256' => hash_file('sha256', __FILE__), 'files' => []];
+if (count($metadata) !== $count) {
+    throw new RuntimeException('Metadata count differs from palette');
+}
+$dictionary = new BlockStateDictionary($dictionaryEntries);
+$networkMeta = hash_init('sha256');
+foreach ($dictionaryEntries as $id => $entry) {
+    if ($dictionary->lookupStateIdFromData($entry->generateStateData()) !== $id) {
+        throw new RuntimeException('Source state dictionary is not reversible');
+    }
+    hash_update($networkMeta, pack('V2', $id, $dictionary->getMetaFromStateId($id)));
+}
+$nameList = array_keys($names);
+sort($nameList, SORT_STRING);
+$metadataLookups = hash_init('sha256');
+foreach ($nameList as $name) {
+    foreach ($input['source_metadata_values'] as $value) {
+        hash_update($metadataLookups, pack('V', $dictionary->lookupStateIdFromIdMeta($name, $value) ?? 0xffffffff));
+    }
+}
+$syntheticEntries = [];
+$syntheticRoots = [];
+foreach ($input['dictionary_entries'] as $entry) {
+    $state = $states[$entry['case']];
+    $syntheticEntries[] = new BlockStateDictionaryEntry($state->getName(), $state->getStates(), $entry['metadata']);
+    $syntheticRoots[] = new TreeRoot($state->toVanillaNbt());
+}
+$synthetic = new BlockStateDictionary($syntheticEntries);
+$syntheticBytes = $serializer->writeMultiple($syntheticRoots);
+if (file_put_contents($directory . '/dictionary.network.nbt', $syntheticBytes) !== strlen($syntheticBytes)) {
+    throw new RuntimeException('Cannot write synthetic dictionary');
+}
+$files[] = 'dictionary.network.nbt';
+$dictionaryExpected = [
+    'source_count' => $count, 'source_names' => count($names),
+    'network_meta_sha256' => hash_final($networkMeta),
+    'metadata_lookup_sha256' => hash_final($metadataLookups),
+    'synthetic_queries' => array_map(static fn(array $query): array => [
+        'name' => $query['name'], 'metadata' => $query['metadata'],
+        'network_id' => $synthetic->lookupStateIdFromIdMeta($query['name'], $query['metadata']),
+    ], $input['synthetic_metadata_queries']),
+];
+$output = json_encode($dictionaryExpected, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+if (file_put_contents($directory . '/dictionary.json', $output) !== strlen($output)) {
+    throw new RuntimeException('Cannot write dictionary expectations');
+}
+$files[] = 'dictionary.json';
+$manifest = ['schema' => 1, 'oracles' => array_map(static fn(array $source): array => ['repository' => $source['repository'], 'branch' => $source['branch'], 'revision' => $source['revision']], $sources), 'data_source' => $dataManifest['source'], 'palette_sha256' => hash('sha256', $palette), 'metadata_sha256' => hash_file('sha256', $metadataPath), 'generator_sha256' => hash_file('sha256', __FILE__), 'files' => []];
 foreach ($files as $file) {
     $manifest['files'][$file] = ['bytes' => filesize("$directory/$file"), 'sha256' => hash_file('sha256', "$directory/$file")];
 }
