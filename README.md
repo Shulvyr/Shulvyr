@@ -30,9 +30,11 @@ zig build check-tools --summary all
 zig build check-fixtures --summary all
 ```
 
-Reference fixture generators and the native experiment's build harness live in
-[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools). See
-[development notes](docs/development.md) for module contracts and checks.
+Reference fixture generators live in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+The optional [native transport experiment](docs/native-transport.md) uses a Zig
+build driver in this repository. See [development notes](docs/development.md)
+for module contracts and checks.
 
 Logos and visual assets are maintained in [Shulvyr/branding](https://github.com/Shulvyr/branding).
 

@@ -19,5 +19,11 @@
         "tools/check_transport_fixtures.zig",
         "tools/check_fixtures.zig",
         "tools/native-transport/probe.zig",
+        "tools/native_transport.zig",
+        "tools/native_transport_test.zig",
+        "tools/native-transport/Runner.zig",
+        "tools/native-transport/Contract.zig",
+        "tools/native-transport/Workspace.zig",
+        "tools/native-transport/test_child.zig",
     },
 }

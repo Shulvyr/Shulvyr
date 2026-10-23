@@ -101,6 +101,30 @@ pub fn build(b: *std.Build) void {
     generate.has_side_effects = true;
     b.step("generate-registries", "Generate registry identities from local verified data").dependOn(&generate.step);
     const check_tools = b.step("check-tools", "Check registry generation and compile contracts using Zig");
+    const native_options = b.addOptions();
+    native_options.addOption([]const u8, "zig", b.graph.zig_exe);
+    const native_module = b.createModule(.{ .root_source_file = b.path("tools/native_transport.zig"), .target = target, .optimize = optimize });
+    native_module.addOptions("native_options", native_options);
+    const native_executable = b.addExecutable(.{ .name = "native-transport", .root_module = native_module });
+    const native_driver = b.addRunArtifact(native_executable);
+    native_driver.setCwd(b.path("."));
+    native_driver.addPassthruArgs();
+    native_driver.has_side_effects = true;
+    b.step("native-transport", "Build and verify the optional native provider with the Zig driver").dependOn(&native_driver.step);
+    const child = b.addExecutable(.{ .name = "native-tool-test-child", .root_module = b.createModule(.{ .root_source_file = b.path("tools/native-transport/test_child.zig"), .target = target, .optimize = optimize }) });
+    const test_options = b.addOptions();
+    test_options.addOptionPath("child", child.getEmittedBin());
+    const native_tool_module = b.createModule(.{ .root_source_file = b.path("tools/native_transport_test.zig"), .target = target, .optimize = optimize });
+    native_tool_module.addOptions("native_options", native_options);
+    native_tool_module.addOptions("test_options", test_options);
+    const native_tool_tests = b.addRunArtifact(b.addTest(.{ .root_module = native_tool_module }));
+    native_tool_tests.setCwd(b.path("."));
+    native_tool_tests.has_side_effects = true;
+    check_tools.dependOn(&native_tool_tests.step);
+    const check_native_tools = b.step("check-native-tools", "Test native source validation, private diagnostics and process deadlines");
+    check_native_tools.dependOn(&native_tool_tests.step);
+    check_native_tools.dependOn(&native_executable.step);
+    check_tools.dependOn(&native_executable.step);
     const check_generated = b.addRunArtifact(generator);
     check_generated.setCwd(b.path("."));
     check_generated.addArg("--check");
@@ -130,7 +154,7 @@ pub fn build(b: *std.Build) void {
     reference_checker.addPassthruArgs();
     reference_checker.has_side_effects = true;
     b.step("check-reference-tools", "Verify source hashes in an explicitly supplied reference checkout").dependOn(&reference_checker.step);
-    if (b.option([]const u8, "native-transport-prefix", "Prefix produced by the reference-tools native harness")) |prefix| {
+    if (b.option([]const u8, "native-transport-prefix", "Prefix produced by zig build native-transport")) |prefix| {
         const api = b.addTranslateC(.{
             .root_source_file = b.path("src/transport/webrtc/rtc_api.h"),
             .target = target,
@@ -178,6 +202,6 @@ pub fn build(b: *std.Build) void {
         transport_test.dependOn(&run_probe.step);
         transport_test.dependOn(&run_native_tests.step);
     } else {
-        transport_test.dependOn(&b.addFail("Build the native prefix with Shulvyr/reference-tools and supply -Dnative-transport-prefix").step);
+        transport_test.dependOn(&b.addFail("Run zig build native-transport or supply an owned -Dnative-transport-prefix").step);
     }
 }

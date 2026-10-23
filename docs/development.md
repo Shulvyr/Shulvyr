@@ -49,7 +49,7 @@ checks frozen producer records, file sets, wire hashes and semantic summaries.
 Neither command needs PHP, Python or a reference checkout. The focused
 `check-transport-fixtures` step checks signaling, SDP and identity.
 
-Optional generators and native build tooling live in
+Optional reference fixture generators live in
 [Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
 [The local source pin](../data/reference-tools/source.json) records its revision
 and the hash of its source manifest. Fixture checks match their producer hashes
@@ -61,9 +61,15 @@ zig build check-reference-tools -- --root PATH_TO_REFERENCE_TOOLS
 ```
 
 Core CI runs on Linux and Windows in debug and safe modes. Its initial compiler
-bootstrap uses runner OS tools and a verified official archive. The separate
-native workflow retains its C/C++ and Python requirements and runs when its
-source boundaries change or through manual dispatch.
+bootstrap uses runner OS tools and a verified official archive. `check-tools`
+also tests the Zig native driver without fetching or compiling native sources.
+Its tests cover source validation, private diagnostics, owned workspaces,
+process output limits and deadlines, including a closed-pipe stall.
+
+The separate native workflow uses `zig build native-transport` and does not
+fetch reference-tools. It retains the C/C++ toolchain and the pinned Python/Perl
+generators used by Mbed TLS itself. See [native transport](native-transport.md)
+for this optional boundary and reproduction commands.
 
 The default executable and core tests use Zig's standard library. The optional
 native WebRTC adapter is a development backend, with a separate C/C++ toolchain

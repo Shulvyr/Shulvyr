@@ -97,22 +97,43 @@ for transferring additional same-peer handles into bounded cleanup storage.
 
 Use x86_64 Windows or Linux, CPython 3.14, Git, CMake, Perl and the pinned Zig
 compiler. Windows requires Visual Studio 2022 or 2026 C++ Build Tools and a
-Windows SDK. Visual Studio 2026 needs CMake 4.2 or newer. The script uses
+Windows SDK. Visual Studio 2026 needs CMake 4.2 or newer. The Zig driver uses
 `vswhere` to select the installed supported compiler.
-Linux requires Ninja and a C/C++ compiler. The script does not install system
+Linux requires Ninja and a C/C++ compiler. The driver does not install system
 tools or change global configuration.
 
-The build harness, requirements and native source pins live in
-[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
-Follow its disposable-checkout workflow. It pins all transitive Python packages
-and wheel hashes for the two supported platforms. The server's normal build and
-core CI do not install or execute that harness. The separate native workflow
-checks its source snapshot before running the same tests.
+The first-party [build driver](../tools/native_transport.zig) uses Zig and the
+standard library. It needs no reference-tools checkout. The pinned Mbed TLS Git
+source lacks several generated C files. Its upstream generators still require
+Python, Perl and the [hash-pinned Python packages](../data/native-transport/python-requirements.txt).
+These are native build inputs, outside the server and ordinary core checks.
 
-Use `--zig PATH` if the compiler is not on PATH. Sources and build outputs must
-stay under ignored `work/`. Existing source checkouts must match their exact
-revisions and have no local changes. The script fetches only the repositories
-and submodules in its [source manifest](https://github.com/Shulvyr/reference-tools/blob/2c97f2ae25773aeaa1c92a95ddb4e3badbab5e05/tools/native-transport/sources.json), checks
+```sh
+python -m pip install --require-hashes -r data/native-transport/python-requirements.txt
+zig build check-native-tools --summary all
+zig build native-transport --summary all
+```
+
+The driver checks compiler and generator package versions before building. It
+uses `work/native-transport-zig/` by default. `--workspace NAME` selects another
+named child of `work/`, for example:
+
+```sh
+zig build native-transport -- --workspace native-candidate --check-sources
+```
+
+Use `--python PATH` or `--cmake PATH` to select installed tools. `--zig PATH`
+overrides the compiler selected by the build. An existing workspace must carry
+the matching source and generator-requirement fingerprint. Updating either
+input needs a new workspace name, so generated C files cannot be reused with
+another generator package set.
+The driver refuses unowned directories and overlapping concurrent invocations.
+Directory and log boundaries refuse links. It does not delete old workspaces,
+install system tools or sandbox trusted native build scripts.
+
+Source checkouts must match their exact revisions and have no local changes.
+The driver fetches only the repositories and submodules in its
+[source manifest](../data/native-transport/sources.json), checks
 their revisions and verifies the C header's LF Git-blob SHA-256. CRLF checkout
 line endings are normalized for this text hash. Other byte changes, including
 trailing bytes, are rejected.
@@ -121,14 +142,14 @@ The build enables Mbed TLS `MBEDTLS_SSL_DTLS_SRTP` and uses the same installed
 configuration headers for libdatachannel. Media, WebSockets and examples are
 excluded from this data-channel probe. Upstream libdatachannel tests are built
 and run. Their executable returns zero even on individual test failures, so
-the script also requires a nonempty summary with every test successful.
+the driver also requires one nonempty summary with every test successful.
 
 Mbed TLS's own test suite is not run here. The native build uses its default
 cryptographic configuration with the DTLS-SRTP extension enabled. The build
 retains its warning checks. This is not a reduced or audited production TLS
 configuration.
 
-The script runs ten native adapter tests and the Zig probe in debug and safe
+The driver runs ten native adapter tests and the Zig probe in debug and safe
 modes. It checks the adapter test count as well as the probe's result. Native
 tests run each time, including after cached compilation. To repeat them after
 building the native prefix, supply its absolute path:
@@ -168,7 +189,9 @@ while that peer's discovery callback unsubscribes itself. The owner observes
 the sticky failure and closes the logical session. The management worker
 deletes the overflow and queued handles. The old overflow handle must reject
 queries after finalization.
-Each wait has a deadline. The Python runner also bounds subprocess runtime.
+Each wait has a deadline. The Zig runner also bounds subprocess output and
+runtime, including a child that closes its pipes and then stalls. Timeout kills
+and reaps the direct child. It does not guarantee termination of all descendants.
 The probe uses a separate thread-safe Zig allocator and fails on leaked probe
 allocations in both build modes. This does not measure native C++ allocations.
 
@@ -200,10 +223,14 @@ This probe does not inject a global cleanup timeout. A production provider
 still needs an observable teardown-failure policy.
 
 Raw upstream logs can contain SDP, ICE passwords and local addresses. They stay
-in `work/transport-build/` and are never uploaded by CI. The script prints test
-counts, phase results and build diagnostics on failure, keeping raw test output
-private. Local `evidence.json` records source revisions,
-tool versions, the resulting library hash and passed probe modes.
+in the owned workspace and are never uploaded by CI. The driver prints phase
+results, test counts and allowlisted failures. Raw diagnostics stay private,
+including configure and build failures. Each full attempt first marks
+`evidence.json` as incomplete. Only a completed build and both passing probes
+replace it with `status: success`, source and requirement hashes, tool versions,
+the resulting library hash and passed probe modes. A command's previous log is
+cleared before a new attempt. Timeout and output-limit failures may leave an
+empty log when capture cannot finish. They never reuse a previous passing log.
 
 ## Dependency review
 

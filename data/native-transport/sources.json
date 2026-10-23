@@ -1,0 +1,41 @@
+{
+  "libdatachannel": {
+    "repository": "https://github.com/paullouisageneau/libdatachannel.git",
+    "branch": "master",
+    "revision": "bdc5ff28e9d3b863144c94a677ecf5bf043aaf15",
+    "version": "0.24.6",
+    "license": "MPL-2.0",
+    "header_lf_sha256": "ef9fbb59fbe9f99d7b0cf15812609e992c1f62625b14135d3a4827a9b62f86c3",
+    "submodules": {
+      "deps/plog": {
+        "repository": "https://github.com/SergiusTheBest/plog.git",
+        "revision": "94899e0b926ac1b0f4750bfbd495167b4a6ae9ef",
+        "license": "MIT"
+      },
+      "deps/usrsctp": {
+        "repository": "https://github.com/paullouisageneau/usrsctp.git",
+        "revision": "fec583d54493f879d2ae44a743423bf8a04371ab",
+        "license": "BSD-3-Clause"
+      },
+      "deps/libjuice": {
+        "repository": "https://github.com/paullouisageneau/libjuice.git",
+        "revision": "b89c792e3612faf2f12cf35bcc56857313a06be3",
+        "license": "MPL-2.0"
+      }
+    }
+  },
+  "mbedtls": {
+    "repository": "https://github.com/Mbed-TLS/mbedtls.git",
+    "branch": "mbedtls-3.6",
+    "revision": "a96c1dffcd73487d3243f3ed3555365353cede64",
+    "version": "3.6.7",
+    "license": "Apache-2.0 OR GPL-2.0-or-later",
+    "submodules": {
+      "framework": {
+        "repository": "https://github.com/Mbed-TLS/mbedtls-framework",
+        "revision": "9eef07b93d1e75dbf8c507d6af5e2286f9c7fe83",
+        "license": "Apache-2.0 OR GPL-2.0-or-later"
+      }
+    }
+  }
+}
