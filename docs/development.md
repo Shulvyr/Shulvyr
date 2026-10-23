@@ -17,14 +17,12 @@ when designing each subsystem. Preserve the selected behavior in differential
 tests and record intentional deviations beside that subsystem's contract.
 
 ```sh
-zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig tools/check_transport_fixtures.zig tools/check_fixtures.zig
+zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig tools
 zig build
 zig build test --summary all
 zig build test -Doptimize=safe --summary all
 zig build check-fixtures --summary all
-python tools/generate_registries.py --check
-python tools/test_registry_codegen.py
-python tools/test_registry_compile.py
+zig build check-tools --summary all
 ```
 
 CI runs these checks on x86_64 Linux and Windows. To compile for another target
@@ -44,17 +42,28 @@ not determine Shulvyr's ability to build or maintain its own behavior.
 See [dependency boundaries and recovery gaps](dependencies.md) for the current
 data, oracle, native-backend and maintenance-tool dependencies.
 
-Use Zig for new first-party maintenance tools. `zig build check-fixtures` checks
-all committed oracle fixtures without Python or PHP. It verifies provenance,
-generator hashes, file sets, wire hashes and the recorded semantic checks.
-It reads oracle generator source as data and never executes it. The focused
+The maintenance tools in this repository use Zig. `zig build check-tools`
+verifies registry generation, runs its parser tests and checks eight compile
+contracts, including expected compiler failures. `zig build check-fixtures`
+checks frozen producer records, file sets, wire hashes and semantic summaries.
+Neither command needs PHP, Python or a reference checkout. The focused
 `check-transport-fixtures` step checks signaling, SDP and identity.
 
-Registry generation and its tests, compiler bootstrap and native-probe build
-tooling still use Python. Their migration is incomplete. Optional oracle
-regeneration uses the reference's language to produce independent evidence,
-with its revision and output hashes recorded. Normal tests consume checked-in
-bytes without invoking that runtime.
+Optional generators and native build tooling live in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+[The local source pin](../data/reference-tools/source.json) records its revision
+and the hash of its source manifest. Fixture checks match their producer hashes
+against that frozen manifest. To hash actual reference source files without
+executing them, supply a checkout explicitly:
+
+```sh
+zig build check-reference-tools -- --root PATH_TO_REFERENCE_TOOLS
+```
+
+Core CI runs on Linux and Windows in debug and safe modes. Its initial compiler
+bootstrap uses runner OS tools and a verified official archive. The separate
+native workflow retains its C/C++ and Python requirements and runs when its
+source boundaries change or through manual dispatch.
 
 The default executable and core tests use Zig's standard library. The optional
 native WebRTC adapter is a development backend, with a separate C/C++ toolchain
@@ -71,7 +80,10 @@ contracts and tests. See its [remaining production gates](native-transport.md).
 - `transport/identity/Assertion.zig` and `PublicKey.zig` provide bounded owned
   assertion parsing, P-384 key handling and separate signature/time checks.
   `transport/sdp/FingerprintPayload.zig` writes all fingerprint attributes for
-  target-protocol proofs. See [identity primitives and trust](identity.md).
+  target-protocol proofs. `OperatorKey.zig` owns signing material, `Issuer.zig`
+  issues bounded self-signed assertions and `SignedDescription.zig` binds them
+  to a borrowed local SDP. A durable key store and negotiation integration
+  remain required. See [identity primitives and trust](identity.md).
 - `transport/framing.zig` splits and reassembles bounded NetherNet messages.
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound

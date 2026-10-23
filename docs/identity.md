@@ -5,9 +5,10 @@ ES384 proofs using Zig's standard-library P-384/SHA-384 implementation.
 `IdentityPublicKey` reads public keys from an EC/P-384 JWK or a base64 DER
 SubjectPublicKeyInfo. No additional runtime library is required.
 
-These are parsing and cryptographic primitives. They do not admit a player,
-validate a Minecraft service token, issue a server identity or persist an
-operator key. The server runner has no identity negotiation flow yet.
+`OperatorKey` owns a P-384 operator key. `IdentityIssuer` creates self-signed
+server assertions and `SignedDescription` binds them to local SDP fingerprints.
+These primitives do not admit a player, validate a Minecraft service token or
+persist an operator key. The server runner has no identity negotiation flow yet.
 
 ## Ownership and resource limits
 
@@ -88,6 +89,66 @@ the reference. Compressed and uncompressed SPKI can describe the same point
 and have different digests. JWK input produces uncompressed canonical SPKI.
 Future pin storage must choose and document its representation contract.
 
+## Operator keys and server assertions
+
+An `OperatorKey` owns its private scalar until `deinit` clears its storage.
+Generate it once for an operator lifetime with the caller's `std.Io` CSPRNG.
+Do not duplicate the owner. Serialize signing, export and destruction in its
+owner context. Operations after destruction fail. Explicit formatting with
+`{f}` is redacted, but structural dumps and raw fields can still disclose the key.
+
+`fromSecretScalar` copies a canonical nonzero 48-byte big-endian scalar.
+`writeSecretScalar` explicitly exports those sensitive bytes to caller storage.
+The caller must protect and clear import/export buffers. Importing the same
+scalar restores the same public key. This is a serialization boundary, without
+filesystem permissions, atomic writes, backup or crash recovery. A durable key
+store is still required before server integration.
+
+`IdentityIssuer.write` borrows the key and uses fresh CSPRNG noise for two ES384
+signatures. The JWT carries `iat`, `exp` and `cpk`. JWK is the default required
+by the target protocol guide. `legacy_der` is an explicit reference-format
+option. Issuance always presents uncompressed canonical SPKI/JWK coordinates,
+even when an external key provider supplies a compressed public key. Renewing
+the token preserves that key identity. The `x5u` header contains its base64 DER,
+without fetching a URL. The caller supplies Unix time, a positive lifetime and
+the display domain. Expiry arithmetic rejects overflow.
+
+`writeSigned` accepts a synchronous signer with `sign(input) ![96]u8`. The signer
+must return raw ES384 bytes for the supplied public key and must not retain or
+mutate input or caller buffers. Both signatures are verified before publication.
+This boundary can support another key store without exposing its internals.
+
+Issuance uses caller output and workspace, with no heap allocations. Defaults
+allow a 16 KiB encoded attribute, 256-byte UTF-8 domain and 16 KiB proof payload.
+Hard caps are 64 KiB, 1,024 bytes and 16 KiB respectively. Preflight rejects
+invalid configuration, overlapping buffers and insufficient output/workspace
+before invoking the signer. Every failure preserves output. Workspace may
+change, and a signing failure may follow an earlier successful signer call.
+Keep both buffers out of logs.
+
+## Binding a local description
+
+`SignedDescription.write` takes an immutable parsed local SDP, an operator key,
+caller output and workspace. It collects all fingerprint attributes across all
+scopes, signs their canonical payload and inserts one session identity before
+the first media section. Existing identity attributes in every scope are removed.
+Fingerprint spelling and order remain unchanged. Output uses CRLF line endings.
+
+The description, payload and identity limits remain explicit. This wrapper caps
+SDP text at 64 KiB and fingerprint payloads at 16 KiB. Description limits apply
+to normalized input and signed output. Workspace reserves the configured SDP,
+fingerprint and identity capacities, then gives the remaining tail to issuance.
+Tests use 128 KiB with default limits. Exhaustion is an explicit error.
+Overlaps with the key, domain, source lines or descriptors are
+rejected before workspace writes. It stages the complete result before copying
+to output, so failure preserves output. Workspace may change and output-size
+or expansion errors may occur after signing.
+
+The input must come from the caller's local negotiation flow. This helper does
+not create an SDP answer, validate ICE/DTLS or prove that a fingerprint matches
+the actual transport certificate. Those checks and a durable operator key are
+required at the provider and negotiation boundaries before accepting clients.
+
 ## Independent evidence
 
 The optional generator calls public APIs from current Axolotl NetherNet
@@ -99,18 +160,28 @@ is frozen by source, generator and output hashes. Its expected wire bytes and
 signature results are independent of the Zig implementation.
 
 ```sh
-php tools/generate_identity_fixtures.php PATH_TO_NETHERNET
 zig build check-fixtures --summary all
 zig build test --summary all
 ```
 
-PHP with OpenSSL is needed only for optional regeneration. Core tests and the
-Zig fixture checker consume committed evidence without that runtime or source
-checkout. Cryptographic vectors around base64 chunk boundaries exercise the
+The generators are maintained in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+PHP with OpenSSL is needed only in its optional regeneration workflow.
+Core tests and the Zig fixture checker consume committed evidence and the local
+producer snapshot without that runtime or source checkout. Cryptographic
+vectors around base64 chunk boundaries exercise the
 streaming verifier, including empty and non-SDP payloads. Those vectors are
 primitive tests, not valid protocol messages or real-client evidence.
 
+The separate issuance corpus has eight cases from the same pinned public APIs.
+It covers JWK and legacy DER, escaping, clock/lifetime boundaries and multiple
+fingerprints. Its test signer replays a recorded valid signature only when the
+complete signing input matches the source bytes. This checks serialization,
+without retaining a private fixture key. Separate tests use real Zig signing,
+invalid and wrong-key signers, key destruction, token renewal and SDP binding.
+The optional generator adds no runtime dependency or normal-build requirement.
+
 Additional tests cover ownership, allocation failure, byte/depth/token/storage
 budgets, duplicate fields, wrong keys, malformed algorithms, forged claims,
-timestamp overflow and unchanged fingerprint output on failure. Native
-interoperability and real-client identity negotiation remain untested.
+timestamp overflow and unchanged output on failure. Real-client identity
+negotiation and integration with the native WebRTC adapter remain untested.

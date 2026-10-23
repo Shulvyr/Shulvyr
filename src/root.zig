@@ -41,6 +41,9 @@ pub const SdpFingerprint = @import("transport/sdp/Fingerprint.zig");
 pub const FingerprintPayload = @import("transport/sdp/FingerprintPayload.zig");
 pub const IdentityPublicKey = @import("transport/identity/PublicKey.zig");
 pub const IdentityAssertion = @import("transport/identity/Assertion.zig");
+pub const OperatorKey = @import("transport/identity/OperatorKey.zig");
+pub const IdentityIssuer = @import("transport/identity/Issuer.zig");
+pub const SignedDescription = @import("transport/identity/SignedDescription.zig");
 pub const cli = @import("operator/cli.zig");
 
 test {
@@ -59,4 +62,5 @@ test {
     _ = @import("transport/signaling_test.zig");
     _ = @import("transport/sdp_test.zig");
     _ = @import("transport/identity_test.zig");
+    _ = @import("transport/issuer_test.zig");
 }

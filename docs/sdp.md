@@ -68,13 +68,14 @@ The LGPL-3.0-or-later oracle source and PHP runtime remain outside the Zig packa
 Its fixture manifest records the source revision and generator/fixture hashes.
 
 ```sh
-php tools/generate_sdp_fixtures.php PATH_TO_NETHERNET
 zig build check-transport-fixtures --summary all
 zig build test --summary all
 ```
 
-Oracle regeneration is optional and needs the reference runtime. The Zig checker
-reads the frozen fixture, manifest and generator as data. It never invokes PHP.
+Oracle regeneration is optional and lives in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+The Zig checker validates the frozen fixture, manifest and recorded producer
+hashes without reading or executing PHP sources.
 Building the server and running its tests do not require the reference checkout.
 
 The corpus covers 42 descriptions, 18 edits and 17 standalone fingerprint cases.

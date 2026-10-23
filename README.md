@@ -20,15 +20,18 @@ zig build run -- --help
 The default run completes 20 logical ticks at a target rate of 20 Hz. The current
 runtime opens no network sockets or worlds.
 
-The compiler bootstrap tool requires Python 3.12 or newer on x86_64 Linux or
-Windows. It verifies the official archive against the hashes in
-[tools/zig-downloads.json](tools/zig-downloads.json).
+Download the matching official archive recorded in
+[tools/zig-downloads.json](tools/zig-downloads.json), verify its SHA-256 and add
+the extracted compiler's directory to your PATH. CI uses runner OS tools for
+this initial compiler installation. Maintenance commands use Zig:
 
 ```sh
-python tools/bootstrap_zig.py
+zig build check-tools --summary all
+zig build check-fixtures --summary all
 ```
 
-Add the printed compiler's directory to your PATH. See
+Reference fixture generators and the native experiment's build harness live in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools). See
 [development notes](docs/development.md) for module contracts and checks.
 
 Logos and visual assets are maintained in [Shulvyr/branding](https://github.com/Shulvyr/branding).

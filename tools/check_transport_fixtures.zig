@@ -1,7 +1,8 @@
 const std = @import("std");
+const references = @import("reference_sources.zig");
 const Value = std.json.Value;
 const Allocator = std.mem.Allocator;
-const Kind = enum { signaling, sdp, identity };
+const Kind = enum { signaling, sdp, identity, issuer };
 
 pub fn main(init: std.process.Init) !u8 {
     var output_buffer: [512]u8 = undefined;
@@ -26,6 +27,8 @@ pub fn run(arena: Allocator, io: std.Io, output: *std.Io.Writer) !void {
     try output.writeAll("Verified 42 SDP descriptions, 18 edits and 17 fingerprint oracle cases\n");
     try checkIdentity(arena, try load(arena, io, .identity));
     try output.writeAll("Verified 12 identity keys, 26 assertions and 15 timestamp oracle cases\n");
+    try checkIssuer(arena, try load(arena, io, .issuer));
+    try output.writeAll("Verified 8 independent identity issuance oracle cases\n");
 }
 
 pub fn require(condition: bool) !void {
@@ -91,6 +94,7 @@ fn load(arena: Allocator, io: std.Io, kind: Kind) !Value {
         .signaling => .{ "src/transport/fixtures/signaling-manifest.json", "src/transport/fixtures/signaling.json", "tools/generate_signaling_fixtures.php" },
         .sdp => .{ "src/transport/fixtures/sdp-manifest.json", "src/transport/fixtures/sdp.json", "tools/generate_sdp_fixtures.php" },
         .identity => .{ "src/transport/fixtures/identity-manifest.json", "src/transport/fixtures/identity.json", "tools/generate_identity_fixtures.php" },
+        .issuer => .{ "src/transport/fixtures/issuer-manifest.json", "src/transport/fixtures/issuer.json", "tools/generate_issuer_fixtures.php" },
     };
     const manifest = try json(arena, try read(arena, io, paths[0]));
     try require(try number(try field(manifest, "schema")) == 1);
@@ -98,6 +102,7 @@ fn load(arena: Allocator, io: std.Io, kind: Kind) !Value {
     const counts = try field(manifest, "cases");
     switch (kind) {
         .signaling => try require(try number(counts) == 30),
+        .issuer => try require(try number(counts) == 8),
         .sdp => {
             try require(counts == .object and counts.object.count() == 3);
             try require(try number(try field(counts, "descriptions")) == 42);
@@ -111,8 +116,8 @@ fn load(arena: Allocator, io: std.Io, kind: Kind) !Value {
             try require(try number(try field(counts, "timestamps")) == 15);
         },
     }
-    // Oracle generators are read as provenance bytes, never executed here.
-    try digest(try read(arena, io, paths[2]), try text(try field(manifest, "generator_sha256")));
+    const sources = try references.Snapshot.load(arena, io);
+    try sources.expect(paths[2], try text(try field(manifest, "generator_sha256")));
     const raw = try read(arena, io, paths[1]);
     try require(raw.len == try number(try field(manifest, "bytes")));
     try digest(raw, try text(try field(manifest, "sha256")));
@@ -133,6 +138,29 @@ fn unique(cases: []const Value, count: usize) !void {
     for (cases, 0..) |case, index| {
         const name = try text(try field(case, "name"));
         for (cases[0..index]) |other| try require(!std.mem.eql(u8, name, try text(try field(other, "name"))));
+    }
+}
+
+fn checkIssuer(arena: Allocator, fixture: Value) !void {
+    const cases = try items(try field(fixture, "cases"));
+    try unique(cases, 8);
+    for (cases) |case| {
+        const encoding = try text(try field(case, "encoding"));
+        try require(std.mem.eql(u8, encoding, "jwk") or std.mem.eql(u8, encoding, "legacy_der"));
+        try require(try field(case, "now") == .integer);
+        const lifetime = try number(try field(case, "lifetime"));
+        try require(lifetime > 0 and lifetime <= std.math.maxInt(u32));
+        try require((try text(try field(case, "domain"))).len != 0);
+        try require((try text(try field(case, "attribute"))).len != 0);
+        try require((try unhex(arena, try field(case, "public_key_der_hex"))).len == 120);
+        _ = try unhex(arena, try field(case, "payload_hex"));
+        for ([_][]const u8{ "token", "proof" }) |kind| {
+            var name_buffer: [32]u8 = undefined;
+            const signature_name = try std.fmt.bufPrint(&name_buffer, "{s}_signature_hex", .{kind});
+            try require((try unhex(arena, try field(case, signature_name))).len == 96);
+            const input_name = try std.fmt.bufPrint(&name_buffer, "{s}_input_hex", .{kind});
+            try require(std.mem.count(u8, try unhex(arena, try field(case, input_name)), ".") == 1);
+        }
     }
 }
 

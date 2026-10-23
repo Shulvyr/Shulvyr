@@ -112,12 +112,13 @@ To refresh, fetch each source's default branch and review changes to its
 serializers and dependencies. Update the revisions in the generator and this
 document, then regenerate fixtures and inspect their byte changes.
 
-To reproduce recorded fixtures, use Git and 64-bit PHP 8.4 or newer with clean
-checkouts at the exact revisions above. No Composer install or dependency scripts are needed.
-For example, with those checkouts under the ignored `work/nbt-reference` folder:
+The optional generator is maintained in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+Its regeneration workflow needs Git and 64-bit PHP 8.4 or newer with clean
+checkouts at the exact revisions above. No Composer installation is needed.
+Normal verification uses the local corpus and frozen producer metadata:
 
 ```sh
-php tools/generate_nbt_fixtures.php work/nbt-reference/NBT work/nbt-reference/BinaryUtils work/nbt-reference/AxolotlBedrockProtocol
 zig build check-fixtures --summary all
 zig build test --summary all
 ```

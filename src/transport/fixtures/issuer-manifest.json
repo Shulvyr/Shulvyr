@@ -1,0 +1,14 @@
+{
+    "schema": 1,
+    "oracle": {
+        "repository": "https://github.com/axolotl-pm/nethernet",
+        "branch": "master",
+        "revision": "6ecacdaed3b0605a6a523235e5536f9c09ea56fd",
+        "license": "LGPL-3.0-or-later"
+    },
+    "php": "8.4.24",
+    "generator_sha256": "7884d1df768bf18142fcc4df6f845a99ad5e0a57eb0d362973c1e62708a50a82",
+    "cases": 8,
+    "bytes": 32229,
+    "sha256": "502a9e4916b1596285ce163819eba443d45aa2a71d06399a2831551d67518348"
+}

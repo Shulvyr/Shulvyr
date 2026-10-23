@@ -102,19 +102,17 @@ Windows SDK. Visual Studio 2026 needs CMake 4.2 or newer. The script uses
 Linux requires Ninja and a C/C++ compiler. The script does not install system
 tools or change global configuration.
 
-Install Python generator dependencies in a virtual environment with
-`python -m pip install --require-hashes -r tools/native-transport/requirements.txt`.
-The requirements pin all transitive packages and hashes for CPython 3.14 wheels
-on the two supported platforms.
-
-```sh
-python tools/native-transport/build_probe.py
-```
+The build harness, requirements and native source pins live in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+Follow its disposable-checkout workflow. It pins all transitive Python packages
+and wheel hashes for the two supported platforms. The server's normal build and
+core CI do not install or execute that harness. The separate native workflow
+checks its source snapshot before running the same tests.
 
 Use `--zig PATH` if the compiler is not on PATH. Sources and build outputs must
 stay under ignored `work/`. Existing source checkouts must match their exact
 revisions and have no local changes. The script fetches only the repositories
-and submodules in [sources.json](../tools/native-transport/sources.json), checks
+and submodules in its [source manifest](https://github.com/Shulvyr/reference-tools/blob/2c97f2ae25773aeaa1c92a95ddb4e3badbab5e05/tools/native-transport/sources.json), checks
 their revisions and verifies the C header's LF Git-blob SHA-256. CRLF checkout
 line endings are normalized for this text hash. Other byte changes, including
 trailing bytes, are rejected.

@@ -340,7 +340,6 @@ and its source/runtime is not shipped in the Zig package. No wire fixture is
 produced by the Zig codec. Reproduce it with a clean oracle checkout:
 
 ```sh
-php tools/generate_framing_fixtures.php PATH_TO_NETHERNET
 zig build check-fixtures --summary all
 zig build test --summary all
 ```
@@ -355,7 +354,8 @@ methods on that real session. They cover drain, grace expiry, empty-message
 control buffering, repeated disconnect and closed/failed transports. The
 generator reads the public packet quota constant, without claiming to exercise
 the PHP manager's scheduling or callbacks.
-No PHP test classes or runtime are included in the Zig package. Outbox tests
+Generators live in [Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+No PHP sources or runtime are included in the Zig package. Outbox tests
 also cover allocation failures, queue wrap, completion pressure, shared native
 admission, bounded pump work, partial-send failure and stale providers. The
 Inbox tests cover concurrent channel producers, immutable copies, lease

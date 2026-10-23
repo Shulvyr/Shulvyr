@@ -25,46 +25,14 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.14'
-      - name: Install pinned Zig
-        run: python tools/bootstrap_zig.py --github-path
+      - uses: ./.github/actions/install-zig
       - name: Check formatting
-        run: zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig tools/native-transport/probe.zig tools/check_transport_fixtures.zig tools/check_fixtures.zig
-      - name: Verify registry generation
-        run: python tools/generate_registries.py --check
+        run: zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig tools
+      - name: Check maintenance tools
+        run: zig build check-tools -Doptimize=${{ matrix.optimize }} --summary all
       - name: Verify oracle fixtures
         run: zig build check-fixtures -Doptimize=${{ matrix.optimize }} --summary all
-      - name: Test registry generator
-        run: python tools/test_registry_codegen.py
-      - name: Test registry compile contracts
-        run: python tools/test_registry_compile.py
       - name: Build
         run: zig build -Doptimize=${{ matrix.optimize }}
       - name: Test
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
-
-  native-transport:
-    name: ${{ matrix.os }} / native transport
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-2025]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.14'
-      - name: Install pinned Zig
-        run: python tools/bootstrap_zig.py --github-path
-      - name: Install native generator requirements
-        run: python -m pip install --require-hashes -r tools/native-transport/requirements.txt
-      - name: Test native source validation
-        run: python tools/native-transport/test_build_probe.py
-      - name: Build and test native candidate
-        run: python tools/native-transport/build_probe.py

@@ -50,15 +50,13 @@ they can use these identities.
 
 ## Reproduce and verify
 
-Python 3.12 or newer is sufficient. Generation needs no network or upstream
-runtime. Ordinary Zig builds use the checked-in output directly.
+The pinned Zig compiler is sufficient. Generation needs no network or upstream
+runtime. Ordinary builds use the checked-in output directly.
 
 ```sh
-python tools/generate_registries.py
-python tools/generate_registries.py --check
+zig build generate-registries
+zig build check-tools --summary all
 zig build check-fixtures --summary all
-python tools/test_registry_codegen.py
-python tools/test_registry_compile.py
 zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig
 zig build test --summary all
 ```
@@ -81,7 +79,7 @@ The Zig compiler independently validates sorted unique keys, numeric ranges
 and a complete permutation of network mappings. Compile-contract tests check
 these failures using the pinned compiler. Runtime tests cover fixed dictionary
 vectors, invalid IDs, domain separation and both lookup directions for every
-entry. Python tests compare every generated row against its source mapping.
+entry. Zig tool tests compare every generated row against its source mapping.
 
 ## Lookup oracle
 
@@ -105,11 +103,11 @@ the data snapshot hash and the generator hash. PHP sources and runtime remain
 development-only. Expected answers and the mapping hash come from upstream
 public methods, not from the Zig implementation.
 
-To regenerate, use clean source checkouts at the manifest revisions and
-64-bit PHP 8.4 or newer:
+The generator lives in [Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
+Its regeneration workflow uses clean checkouts at the manifest revisions and
+64-bit PHP 8.4 or newer in a disposable server checkout:
 
 ```sh
-php tools/generate_registry_fixtures.php /path/to/NBT /path/to/BedrockProtocol
 zig build check-fixtures --summary all
 zig build test --summary all
 ```
@@ -157,7 +155,6 @@ separately. Fourteen synthetic schema cases and ten equality pairs cover missing
 versions, metadata, property order, signed boundaries and invalid roots.
 
 ```sh
-php tools/generate_block_fixtures.php /path/to/NBT /path/to/BinaryUtils /path/to/BedrockProtocol /path/to/PocketMine-MP
 zig build check-fixtures --summary all
 zig build test --summary all
 ```

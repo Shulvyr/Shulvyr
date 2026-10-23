@@ -47,11 +47,12 @@ requires a clean reference checkout at that exact revision. Zig does not produce
 the checked-in expected bytes.
 
 ```sh
-php tools/generate_signaling_fixtures.php PATH_TO_NETHERNET
 zig build check-transport-fixtures --summary all
 zig build test --summary all
 ```
 
+The optional generator lives in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
 The manifest records source provenance, generator and fixture hashes. Cases
 cover all four kinds, unsigned limits, decimal suffixes, leading zeroes,
 arbitrary data bytes, empty data, malformed fields and canonical output.

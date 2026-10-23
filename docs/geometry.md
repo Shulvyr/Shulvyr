@@ -63,13 +63,14 @@ constructor and `next` method.
 
 ## Oracle corpus
 
+The optional generator is maintained in
+[Shulvyr/reference-tools](https://github.com/Shulvyr/reference-tools).
 The committed corpus contains 80 cases. The manifest records source repository,
 branch and revision, generator SHA-256 and output size/SHA-256. Input definitions
 are in the generator. Regeneration requires Git, a clean checkout at the recorded
 revision and 64-bit PHP 8.4 or newer. No Composer installation is needed.
 
 ```sh
-php tools/generate_math_fixtures.php work/math-reference/Math
 zig build check-fixtures --summary all
 zig build test --summary all
 ```

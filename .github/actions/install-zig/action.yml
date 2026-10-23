@@ -1,0 +1,82 @@
+name: Install pinned Zig
+description: Verify and install the official compiler archive using runner OS tools
+runs:
+  using: composite
+  steps:
+    - shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $version = (Get-Content -LiteralPath .zigversion -Raw).Trim()
+        $manifest = Get-Content -LiteralPath tools/zig-downloads.json -Raw | ConvertFrom-Json
+        if ($version -ne $manifest.version -or $version -notmatch '^\d+\.\d+\.\d+$') { throw 'Compiler pin mismatch' }
+        if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne [Runtime.InteropServices.Architecture]::X64) { throw 'Unsupported compiler host architecture' }
+        $platform = if ($IsWindows) { 'windows' } elseif ($IsLinux) { 'linux' } else { throw 'Unsupported compiler host OS' }
+        $entry = $manifest."x86_64-$platform"
+        $folder = "zig-x86_64-$platform-$version"
+        $suffix = if ($IsWindows) { '.zip' } else { '.tar.xz' }
+        $url = "https://ziglang.org/download/$version/$folder$suffix"
+        if ($entry.url -ne $url -or $entry.sha256 -cnotmatch '^[0-9a-f]{64}$' -or $entry.size -le 0 -or $entry.size -gt 536870912) { throw 'Invalid compiler archive manifest' }
+        $bootstrapRoot = Join-Path $env:GITHUB_WORKSPACE 'work/toolchains'
+        New-Item -ItemType Directory -Force -Path $bootstrapRoot | Out-Null
+        $archive = Join-Path $bootstrapRoot "$folder$suffix"
+        if (Test-Path -LiteralPath $archive) {
+          if ((Get-Item -LiteralPath $archive).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Compiler archive cannot be a link' }
+        } else {
+          $client = [Net.Http.HttpClient]::new()
+          $cancel = [Threading.CancellationTokenSource]::new(60000)
+          try {
+            $response = $client.GetAsync($url, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $cancel.Token).GetAwaiter().GetResult()
+            try {
+              $response.EnsureSuccessStatusCode() | Out-Null
+              $length = $response.Content.Headers.ContentLength
+              if ($null -ne $length -and $length -ne $entry.size) { throw 'Compiler download length mismatch' }
+              $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+              $destination = [IO.File]::Open($archive, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+              try {
+                $buffer = [byte[]]::new(1048576)
+                $received = 0L
+                while (($count = $inputStream.ReadAsync($buffer, 0, $buffer.Length, $cancel.Token).GetAwaiter().GetResult()) -ne 0) {
+                  $received += $count
+                  if ($received -gt $entry.size) { throw 'Compiler download exceeds pinned size' }
+                  $destination.Write($buffer, 0, $count)
+                }
+              } finally { $destination.Dispose(); $inputStream.Dispose() }
+            } finally { $response.Dispose() }
+          } finally { $cancel.Dispose(); $client.Dispose() }
+        }
+        if ((Get-Item -LiteralPath $archive).Length -ne $entry.size) { throw 'Compiler archive size mismatch' }
+        if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry.sha256) { throw 'Compiler archive checksum mismatch' }
+        $compilerDirectory = Join-Path $bootstrapRoot $folder
+        if ($IsWindows) {
+          $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+          try {
+            $entries = @($zip.Entries | ForEach-Object {
+              if ((($_.ExternalAttributes -shr 16) -band 61440) -eq 40960) { throw 'Compiler archive cannot contain links' }
+              $_.FullName
+            })
+          } finally { $zip.Dispose() }
+        } else {
+          $entries = @(& tar -tf $archive)
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect compiler archive' }
+          $listing = @(& tar -tvf $archive)
+          if ($LASTEXITCODE -ne 0 -or @($listing | Where-Object { $_ -match '^[lh]' }).Count -ne 0) { throw 'Compiler archive cannot contain links' }
+        }
+        $expectedRoot = [IO.Path]::GetFullPath($compilerDirectory)
+        $prefix = $expectedRoot + [IO.Path]::DirectorySeparatorChar
+        foreach ($name in $entries) {
+          if (-not $name.StartsWith("$folder/", [StringComparison]::Ordinal) -and $name -ne $folder) { throw 'Unexpected compiler archive root' }
+          $resolved = [IO.Path]::GetFullPath((Join-Path $bootstrapRoot $name))
+          if ($resolved -ne $expectedRoot -and -not $resolved.StartsWith($prefix, [StringComparison]::Ordinal)) { throw 'Compiler archive path escape' }
+        }
+        if ($IsWindows) {
+          [IO.Compression.ZipFile]::ExtractToDirectory($archive, $bootstrapRoot, $true)
+          $compiler = Join-Path $compilerDirectory 'zig.exe'
+        } else {
+          & tar -xJf $archive -C $bootstrapRoot
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot extract compiler archive' }
+          $compiler = Join-Path $compilerDirectory 'zig'
+        }
+        $detected = & $compiler version
+        if ($LASTEXITCODE -ne 0 -or $detected.Trim() -ne $version) { throw 'Installed compiler version mismatch' }
+        $compilerDirectory | Out-File -LiteralPath $env:GITHUB_PATH -Encoding utf8 -Append
+        Write-Output "Installed Zig $version"

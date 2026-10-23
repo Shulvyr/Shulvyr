@@ -93,7 +93,44 @@ pub fn build(b: *std.Build) void {
     all_fixture_step.dependOn(&b.addRunArtifact(all_fixture_tests).step);
 
     const transport_test = b.step("test-native-transport", "Run the optional native WebRTC C API probe");
-    if (b.option([]const u8, "native-transport-prefix", "Prefix produced by tools/native-transport/build_probe.py")) |prefix| {
+    const generator_module = b.createModule(.{ .root_source_file = b.path("tools/generate_registries.zig"), .target = target, .optimize = optimize });
+    const generator = b.addExecutable(.{ .name = "generate-registries", .root_module = generator_module });
+    const generate = b.addRunArtifact(generator);
+    generate.setCwd(b.path("."));
+    generate.addPassthruArgs();
+    generate.has_side_effects = true;
+    b.step("generate-registries", "Generate registry identities from local verified data").dependOn(&generate.step);
+    const check_tools = b.step("check-tools", "Check registry generation and compile contracts using Zig");
+    const check_generated = b.addRunArtifact(generator);
+    check_generated.setCwd(b.path("."));
+    check_generated.addArg("--check");
+    check_generated.has_side_effects = true;
+    check_tools.dependOn(&check_generated.step);
+    const generator_tests = b.addRunArtifact(b.addTest(.{ .root_module = generator_module }));
+    generator_tests.setCwd(b.path("."));
+    generator_tests.has_side_effects = true;
+    check_tools.dependOn(&generator_tests.step);
+    const registry_module = b.createModule(.{ .root_source_file = b.path("src/registry/Registry.zig"), .target = target, .optimize = optimize });
+    const sources = b.addWriteFiles();
+    for (@import("tools/registry_contracts.zig").cases) |case| {
+        const source = sources.add(b.fmt("{s}.zig", .{case.name}), b.fmt(
+            "const registry = @import(\"registry\");\nconst Row = registry.Row;\ncomptime {{\n    const rows: []const Row = &{s};\n    const order: []const u32 = &{s};\n    _ = registry.Registry(.item, i16, rows, order);\n}}\n",
+            .{ case.rows, case.order },
+        ));
+        const contract = b.addTest(.{
+            .name = b.fmt("registry-{s}", .{case.name}),
+            .root_module = b.createModule(.{ .root_source_file = source, .target = target, .optimize = optimize, .imports = &.{.{ .name = "registry", .module = registry_module }} }),
+        });
+        if (case.expected) |message| contract.expect_errors = .{ .contains = message };
+        check_tools.dependOn(&contract.step);
+    }
+    const reference_module = b.createModule(.{ .root_source_file = b.path("tools/reference_sources.zig"), .target = target, .optimize = optimize });
+    const reference_checker = b.addRunArtifact(b.addExecutable(.{ .name = "check-reference-tools", .root_module = reference_module }));
+    reference_checker.setCwd(b.path("."));
+    reference_checker.addPassthruArgs();
+    reference_checker.has_side_effects = true;
+    b.step("check-reference-tools", "Verify source hashes in an explicitly supplied reference checkout").dependOn(&reference_checker.step);
+    if (b.option([]const u8, "native-transport-prefix", "Prefix produced by the reference-tools native harness")) |prefix| {
         const api = b.addTranslateC(.{
             .root_source_file = b.path("src/transport/webrtc/rtc_api.h"),
             .target = target,
@@ -141,6 +178,6 @@ pub fn build(b: *std.Build) void {
         transport_test.dependOn(&run_probe.step);
         transport_test.dependOn(&run_native_tests.step);
     } else {
-        transport_test.dependOn(&b.addFail("Run tools/native-transport/build_probe.py and supply -Dnative-transport-prefix").step);
+        transport_test.dependOn(&b.addFail("Build the native prefix with Shulvyr/reference-tools and supply -Dnative-transport-prefix").step);
     }
 }

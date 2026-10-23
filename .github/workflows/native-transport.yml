@@ -1,0 +1,84 @@
+name: Native transport
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/transport/**'
+      - 'src/foundation/**'
+      - 'src/root.zig'
+      - 'build.zig'
+      - 'build.zig.zon'
+      - '.zigversion'
+      - 'tools/native-transport/**'
+      - 'tools/reference_sources.zig'
+      - 'tools/zig-downloads.json'
+      - 'data/reference-tools/**'
+      - '.github/actions/install-zig/**'
+      - '.github/workflows/native-transport.yml'
+  pull_request:
+    paths:
+      - 'src/transport/**'
+      - 'src/foundation/**'
+      - 'src/root.zig'
+      - 'build.zig'
+      - 'build.zig.zon'
+      - '.zigversion'
+      - 'tools/native-transport/**'
+      - 'tools/reference_sources.zig'
+      - 'tools/zig-downloads.json'
+      - 'data/reference-tools/**'
+      - '.github/actions/install-zig/**'
+      - '.github/workflows/native-transport.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-transport:
+    name: ${{ matrix.os }} / native transport
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/install-zig
+      - name: Read reference source pin
+        id: reference
+        shell: pwsh
+        run: |
+          $pin = Get-Content -LiteralPath data/reference-tools/source.json -Raw | ConvertFrom-Json
+          if ($pin.repository -ne 'https://github.com/Shulvyr/reference-tools' -or $pin.revision -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid reference source pin' }
+          "revision=$($pin.revision)" | Out-File -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: Shulvyr/reference-tools
+          ref: ${{ steps.reference.outputs.revision }}
+          path: work/reference-tools
+          persist-credentials: false
+      - name: Verify reference source snapshot
+        run: zig build check-reference-tools -- --root work/reference-tools
+      - name: Prepare isolated native harness
+        shell: pwsh
+        run: |
+          foreach ($name in @('build_probe.py','test_build_probe.py','requirements.txt','sources.json')) {
+            Copy-Item -LiteralPath "work/reference-tools/tools/native-transport/$name" -Destination "tools/native-transport/$name"
+          }
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Install native generator requirements
+        run: python -m pip install --require-hashes -r tools/native-transport/requirements.txt
+      - name: Test native source validation
+        run: python tools/native-transport/test_build_probe.py
+      - name: Build and test native candidate
+        run: python tools/native-transport/build_probe.py

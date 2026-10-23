@@ -31,6 +31,20 @@ pub fn fromBase64Der(encoded: []const u8) !PublicKey {
     return fromDer(try codec.decode(&buffer, encoded, false));
 }
 
+pub fn fromSec1(point: []const u8) !PublicKey {
+    const length: usize = switch (point.len) {
+        49 => 72,
+        97 => 120,
+        else => return error.InvalidPublicKeyEncoding,
+    };
+    var encoded: [120]u8 = undefined;
+    @memcpy(encoded[0..prefix.len], prefix);
+    encoded[1] = @intCast(length - 2);
+    encoded[21] = @intCast(length - 22);
+    @memcpy(encoded[prefix.len..length], point);
+    return fromDer(encoded[0..length]);
+}
+
 pub fn fromClaim(claim: codec.Value) !PublicKey {
     if (claim == .string) return fromBase64Der(claim.string);
     if (!std.mem.eql(u8, try codec.text(try codec.field(claim, "kty")), "EC") or
@@ -44,10 +58,7 @@ pub fn fromClaim(claim: codec.Value) !PublicKey {
         const coordinate = try codec.decode(point[offset..][0..48], encoded, true);
         if (coordinate.len != 48) return error.InvalidPublicKeyEncoding;
     }
-    var der: [120]u8 = undefined;
-    @memcpy(der[0..prefix.len], prefix);
-    @memcpy(der[prefix.len..], &point);
-    return fromDer(&der);
+    return fromSec1(&point);
 }
 
 pub fn derBytes(self: *const PublicKey) []const u8 {

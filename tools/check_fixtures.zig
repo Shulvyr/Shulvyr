@@ -1,5 +1,6 @@
 const std = @import("std");
 const transport = @import("check_transport_fixtures.zig");
+const references = @import("reference_sources.zig");
 const Value = std.json.Value;
 const Allocator = std.mem.Allocator;
 const require = transport.require;
@@ -57,8 +58,9 @@ const Checker = struct {
     fn manifest(self: Checker, directory: []const u8, schema: u64, generator: []const u8) !Value {
         const result = try self.value(try self.path(directory, "manifest.json"));
         try require(try number(try field(result, "schema")) == schema);
-        // The oracle's reference-language source is hashed as data, never run.
-        try digest(try self.read(generator), try text(try field(result, "generator_sha256")));
+        // Match the frozen producer record without requiring its runtime or source checkout.
+        const sources = try references.Snapshot.load(self.arena, self.io);
+        try sources.expect(generator, try text(try field(result, "generator_sha256")));
         return result;
     }
 
@@ -97,7 +99,7 @@ const Checker = struct {
         }
         try self.files(directory, manifest_value, &names);
         try self.directoryFiles(directory, &names, true);
-        try output.writeAll("Verified 12 NBT fixtures and oracle generator\n");
+        try output.writeAll("Verified 12 NBT fixtures and recorded producer\n");
     }
 
     fn math(self: Checker, output: *std.Io.Writer) !void {
