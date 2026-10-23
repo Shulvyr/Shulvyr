@@ -59,6 +59,10 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   expires on removal. Exhausted generations retire slots.
 - `foundation/Queue.zig` is a fixed-capacity FIFO for one execution context. A
   failed push retains ownership with the caller. It provides no synchronization.
+- `foundation/Mailbox.zig` transfers messages between execution contexts with
+  bounded queue capacity and explicit backpressure. `foundation/OwnedBytes.zig`
+  copies bounded immutable snapshots. See [worker ownership](jobs.md) for moves,
+  allocator lifetime, closure and shutdown ordering.
 - `math/coordinates.zig` uses floor division for signed block coordinates.
   Local coordinates are always 0 through 15. Joining coordinates rejects i32
   overflow.
@@ -78,6 +82,8 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
 - `simulation/JobStamp.zig` compares world identity, generation and revision with
   the owner's current stamp. The owner must resolve a live world first. The
   producer remains responsible for payload lifetime.
+- `simulation/StampedBytes.zig` releases stale result snapshots or transfers a
+  current result once after the world owner resolves its live stamp.
 - `simulation/Runtime.zig` owns its timers and command queue. The finite runner
   uses `std.Io.Clock.awake`, stops at the configured logical tick and drains its
   internal stop commands during cleanup.

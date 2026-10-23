@@ -9,6 +9,8 @@ pub const Aabb = @import("math/Aabb.zig");
 pub const VoxelRay = @import("math/VoxelRay.zig");
 pub const Pool = @import("foundation/Pool.zig").Pool;
 pub const Queue = @import("foundation/Queue.zig").Queue;
+pub const Mailbox = @import("foundation/Mailbox.zig").Mailbox;
+pub const OwnedBytes = @import("foundation/OwnedBytes.zig");
 pub const coordinates = @import("math/coordinates.zig");
 pub const ResourceKey = @import("registry/ResourceKey.zig");
 pub const catalog = @import("registry/catalog.zig");
@@ -16,9 +18,11 @@ pub const TickClock = @import("simulation/TickClock.zig");
 pub const Scheduler = @import("simulation/Scheduler.zig").Scheduler;
 pub const Runtime = @import("simulation/Runtime.zig");
 pub const JobStamp = @import("simulation/JobStamp.zig").JobStamp;
+pub const StampedBytes = @import("simulation/StampedBytes.zig").StampedBytes;
 pub const cli = @import("operator/cli.zig");
 
 test {
     std.testing.refAllDecls(@This());
     _ = @import("math/math_test.zig");
+    _ = @import("simulation/job_test.zig");
 }
