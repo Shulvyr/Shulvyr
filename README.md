@@ -36,6 +36,10 @@ The optional [native transport experiment](docs/native-transport.md) uses a Zig
 build driver in this repository. See [development notes](docs/development.md)
 for module contracts and checks.
 
+[Operator identity commands](docs/operator-keys.md) initialize, inspect, rotate,
+back up and recover the server signing key. They use a private state directory
+and do not start networking.
+
 Logos and visual assets are maintained in [Shulvyr/branding](https://github.com/Shulvyr/branding).
 
 Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.

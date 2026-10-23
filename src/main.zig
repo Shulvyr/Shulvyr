@@ -21,6 +21,10 @@ fn execute(io: std.Io, arguments: []const []const u8, stdout: *std.Io.Writer, st
     switch (command) {
         .help => try stdout.writeAll(shulvyr.cli.usage),
         .version => try stdout.print("Shulvyr {s}\n", .{shulvyr.version}),
+        .identity => |operation| shulvyr.identity_cli.execute(io, operation, stdout) catch |err| {
+            try stderr.print("error: {s}\n", .{@errorName(err)});
+            return 1;
+        },
         .run => |config| {
             try stdout.print("Shulvyr {s} foundation runtime\n", .{shulvyr.version});
             try stdout.flush();

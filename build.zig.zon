@@ -15,6 +15,7 @@
         "tools/zig-downloads.json",
         "tools/generate_registries.zig",
         "tools/registry_contracts.zig",
+        "tools/identity_cli_test.zig",
         "tools/reference_sources.zig",
         "tools/check_transport_fixtures.zig",
         "tools/check_fixtures.zig",

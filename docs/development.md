@@ -1,8 +1,9 @@
 # Development
 
-The foundation uses Zig 0.17.0 and the Zig standard library. There are no external
-Zig packages or runtime libraries in the server. The build rejects other compiler
-versions. The optional [native transport probe](native-transport.md) builds a
+The foundation uses Zig 0.17.0, its standard library and native OS APIs. Windows
+operator key storage uses the system Advapi32 API. There are no external Zig
+packages. The build rejects other compiler versions. The optional
+[native transport probe](native-transport.md) builds a
 C API candidate with separately pinned source dependencies and a shared adapter
 module. It remains separate from the default server executable.
 
@@ -88,8 +89,10 @@ contracts and tests. See its [remaining production gates](native-transport.md).
   `transport/sdp/FingerprintPayload.zig` writes all fingerprint attributes for
   target-protocol proofs. `OperatorKey.zig` owns signing material, `Issuer.zig`
   issues bounded self-signed assertions and `SignedDescription.zig` binds them
-  to a borrowed local SDP. A durable key store and negotiation integration
-  remain required. See [identity primitives and trust](identity.md).
+  to a borrowed local SDP. `OperatorKeyStore` persists generation records with
+  owner-only access, explicit recovery and backup. The executable exposes its
+  management commands. See [operator keys](operator-keys.md). Negotiation and
+  certificate binding remain separate from [identity primitives](identity.md).
 - `transport/framing.zig` splits and reassembles bounded NetherNet messages.
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound

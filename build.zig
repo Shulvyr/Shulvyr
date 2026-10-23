@@ -20,6 +20,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     core.addOptions("build_options", options);
+    if (target.result.os.tag == .windows) core.linkSystemLibrary("advapi32", .{});
     core.addAnonymousImport("bedrock_data", .{
         .root_source_file = b.path("data/bedrock/root.zig"),
         .target = target,
@@ -42,8 +43,17 @@ pub fn build(b: *std.Build) void {
     const unit_tests = b.addTest(.{ .root_module = core });
     const test_step = b.step("test", "Run unit and CLI integration tests");
     test_step.dependOn(&b.addRunArtifact(unit_tests).step);
+    const identity_options = b.addOptions();
+    identity_options.addOptionPath("executable", executable.getEmittedBin());
+    const identity_module = b.createModule(.{ .root_source_file = b.path("tools/identity_cli_test.zig"), .target = target, .optimize = optimize });
+    identity_module.addOptions("identity_test_options", identity_options);
+    const identity_tests = b.addTest(.{ .root_module = identity_module });
+    const run_identity_tests = b.addRunArtifact(identity_tests);
+    run_identity_tests.has_side_effects = true;
+    test_step.dependOn(&run_identity_tests.step);
     const compile_tests = b.step("test-compile", "Compile tests without running them");
     compile_tests.dependOn(&unit_tests.step);
+    compile_tests.dependOn(&identity_tests.step);
 
     const version = b.addRunArtifact(executable);
     version.addArg("--version");

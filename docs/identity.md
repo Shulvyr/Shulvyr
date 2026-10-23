@@ -7,8 +7,10 @@ SubjectPublicKeyInfo. No additional runtime library is required.
 
 `OperatorKey` owns a P-384 operator key. `IdentityIssuer` creates self-signed
 server assertions and `SignedDescription` binds them to local SDP fingerprints.
-These primitives do not admit a player, validate a Minecraft service token or
-persist an operator key. The server runner has no identity negotiation flow yet.
+[Operator key storage](operator-keys.md) persists keys and supplies explicit
+initialization, inspection, rotation, recovery and backup commands. These
+primitives do not admit a player or validate a Minecraft service token. The
+server runner has no identity negotiation flow yet.
 
 ## Ownership and resource limits
 
@@ -101,8 +103,9 @@ owner context. Operations after destruction fail. Explicit formatting with
 `writeSecretScalar` explicitly exports those sensitive bytes to caller storage.
 The caller must protect and clear import/export buffers. Importing the same
 scalar restores the same public key. This is a serialization boundary, without
-filesystem permissions, atomic writes, backup or crash recovery. A durable key
-store is still required before server integration.
+filesystem permissions, backup or crash recovery. `OperatorKeyStore` adds an
+owned append/flush boundary and explicit recovery around this scalar format.
+Its command and storage contracts are described in [operator keys](operator-keys.md).
 
 `IdentityIssuer.write` borrows the key and uses fresh CSPRNG noise for two ES384
 signatures. The JWT carries `iat`, `exp` and `cpk`. JWK is the default required

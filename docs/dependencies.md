@@ -1,7 +1,8 @@
 # Dependencies and recovery
 
 The default server, core tests and fixture checks use Zig and its standard
-library. `build.zig.zon` has no external package dependencies. They read local
+library and platform OS APIs. Windows key storage uses the system Advapi32 API.
+`build.zig.zon` has no external package dependencies. They read local
 files and do not fetch or execute Axolotl-PM, PocketMine-MP or another server.
 
 ## Existing external inputs
