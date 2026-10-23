@@ -1,0 +1,214 @@
+{
+    "oracle": {
+        "repository": "https://github.com/axolotl-pm/nethernet",
+        "branch": "master",
+        "revision": "6ecacdaed3b0605a6a523235e5536f9c09ea56fd",
+        "license": "LGPL-3.0-or-later"
+    },
+    "cases": [
+        {
+            "name": "offer",
+            "wire_hex": "434f4e4e454354524551554553542034322073796e7468657469632d6f66666572",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "42",
+            "data_hex": "73796e7468657469632d6f66666572",
+            "encoded_hex": "434f4e4e454354524551554553542034322073796e7468657469632d6f66666572"
+        },
+        {
+            "name": "answer",
+            "wire_hex": "434f4e4e454354524553504f4e534520372073796e7468657469632d616e73776572",
+            "kind": "CONNECTRESPONSE",
+            "connection_id": "7",
+            "data_hex": "73796e7468657469632d616e73776572",
+            "encoded_hex": "434f4e4e454354524553504f4e534520372073796e7468657469632d616e73776572"
+        },
+        {
+            "name": "candidate",
+            "wire_hex": "43414e4449444154454144442031322073796e7468657469632d63616e646964617465",
+            "kind": "CANDIDATEADD",
+            "connection_id": "12",
+            "data_hex": "73796e7468657469632d63616e646964617465",
+            "encoded_hex": "43414e4449444154454144442031322073796e7468657469632d63616e646964617465"
+        },
+        {
+            "name": "error",
+            "wire_hex": "434f4e4e4543544552524f5220392033",
+            "kind": "CONNECTERROR",
+            "connection_id": "9",
+            "data_hex": "33",
+            "encoded_hex": "434f4e4e4543544552524f5220392033"
+        },
+        {
+            "name": "empty_data",
+            "wire_hex": "434f4e4e45435452455155455354203020",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "0",
+            "data_hex": "",
+            "encoded_hex": "434f4e4e45435452455155455354203020"
+        },
+        {
+            "name": "leading_zeroes",
+            "wire_hex": "434f4e4e454354524551554553542030303034322078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "42",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e454354524551554553542034322078"
+        },
+        {
+            "name": "zeroes_only",
+            "wire_hex": "434f4e4e454354524551554553542030303030302078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "0",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e4543545245515545535420302078"
+        },
+        {
+            "name": "decimal_suffix",
+            "wire_hex": "434f4e4e454354524551554553542034327375666669782078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "42",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e454354524551554553542034322078"
+        },
+        {
+            "name": "zero_suffix",
+            "wire_hex": "434f4e4e45435452455155455354203030307375666669782078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "0",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e4543545245515545535420302078"
+        },
+        {
+            "name": "maximum",
+            "wire_hex": "434f4e4e454354524551554553542031383434363734343037333730393535313631352078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "18446744073709551615",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e454354524551554553542031383434363734343037333730393535313631352078"
+        },
+        {
+            "name": "maximum_suffix",
+            "wire_hex": "434f4e4e454354524551554553542031383434363734343037333730393535313631357461696c2078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "18446744073709551615",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e454354524551554553542031383434363734343037333730393535313631352078"
+        },
+        {
+            "name": "long_zero_prefix",
+            "wire_hex": "434f4e4e4543545245515545535420303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303034322078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "42",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e454354524551554553542034322078"
+        },
+        {
+            "name": "opaque_binary",
+            "wire_hex": "434f4e4e4543545245515545535420382000ff80",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "8",
+            "data_hex": "00ff80",
+            "encoded_hex": "434f4e4e4543545245515545535420382000ff80"
+        },
+        {
+            "name": "spaces_in_data",
+            "wire_hex": "434f4e4e45435452455155455354203820206120622020",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "8",
+            "data_hex": "206120622020",
+            "encoded_hex": "434f4e4e45435452455155455354203820206120622020"
+        },
+        {
+            "name": "newline_data",
+            "wire_hex": "434f4e4e454354524553504f4e5345203820780d0a790a",
+            "kind": "CONNECTRESPONSE",
+            "connection_id": "8",
+            "data_hex": "780d0a790a",
+            "encoded_hex": "434f4e4e454354524553504f4e5345203820780d0a790a"
+        },
+        {
+            "name": "opaque_error",
+            "wire_hex": "434f4e4e4543544552524f522038206e6f742d612d6e756d626572",
+            "kind": "CONNECTERROR",
+            "connection_id": "8",
+            "data_hex": "6e6f742d612d6e756d626572",
+            "encoded_hex": "434f4e4e4543544552524f522038206e6f742d612d6e756d626572"
+        },
+        {
+            "name": "missing_fields",
+            "wire_hex": "434f4e4e45435452455155455354",
+            "error": true
+        },
+        {
+            "name": "missing_data_separator",
+            "wire_hex": "434f4e4e454354524551554553542038",
+            "error": true
+        },
+        {
+            "name": "tabs",
+            "wire_hex": "434f4e4e4543545245515545535409380978",
+            "error": true
+        },
+        {
+            "name": "empty_id",
+            "wire_hex": "434f4e4e45435452455155455354202078",
+            "error": true
+        },
+        {
+            "name": "negative_id",
+            "wire_hex": "434f4e4e45435452455155455354202d312078",
+            "error": true
+        },
+        {
+            "name": "plus_id",
+            "wire_hex": "434f4e4e45435452455155455354202b312078",
+            "error": true
+        },
+        {
+            "name": "nonnumeric_id",
+            "wire_hex": "434f4e4e45435452455155455354207834322078",
+            "error": true
+        },
+        {
+            "name": "overflow",
+            "wire_hex": "434f4e4e454354524551554553542031383434363734343037333730393535313631362078",
+            "error": true
+        },
+        {
+            "name": "long_overflow",
+            "wire_hex": "434f4e4e454354524551554553542039393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939393939392078",
+            "error": true
+        },
+        {
+            "name": "lowercase_kind",
+            "wire_hex": "636f6e6e6563747265717565737420382078",
+            "error": true
+        },
+        {
+            "name": "unknown_kind",
+            "wire_hex": "554e4b4e4f574e20382078",
+            "error": true
+        },
+        {
+            "name": "leading_space",
+            "wire_hex": "20434f4e4e4543545245515545535420382078",
+            "error": true
+        },
+        {
+            "name": "tab_suffix",
+            "wire_hex": "434f4e4e454354524551554553542038097461696c2078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "8",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e4543545245515545535420382078"
+        },
+        {
+            "name": "embedded_null_id_suffix",
+            "wire_hex": "434f4e4e454354524551554553542038007461696c2078",
+            "kind": "CONNECTREQUEST",
+            "connection_id": "8",
+            "data_hex": "78",
+            "encoded_hex": "434f4e4e4543545245515545535420382078"
+        }
+    ]
+}

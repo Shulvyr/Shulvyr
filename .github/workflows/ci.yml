@@ -44,6 +44,8 @@ jobs:
         run: python tools/check_block_fixtures.py
       - name: Verify framing oracle fixtures
         run: python tools/check_framing_fixtures.py
+      - name: Verify signaling oracle fixtures
+        run: python tools/check_signaling_fixtures.py
       - name: Test registry generator
         run: python tools/test_registry_codegen.py
       - name: Test registry compile contracts

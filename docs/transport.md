@@ -4,6 +4,8 @@
 data-channel frames and application messages. They allocate no heap memory.
 The native provider, signaling, authentication and Bedrock packet adapters have
 separate responsibilities. The server runner does not open a network listener.
+The bounded [signaling text codec](signaling.md) handles its own envelope and
+resource limits before a future negotiation layer processes payload data.
 
 ## Wire behavior
 

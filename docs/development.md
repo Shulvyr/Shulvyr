@@ -27,6 +27,7 @@ python tools/generate_registries.py --check
 python tools/check_registry_fixtures.py
 python tools/check_block_fixtures.py
 python tools/check_framing_fixtures.py
+python tools/check_signaling_fixtures.py
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 ```
@@ -41,6 +42,8 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
 
 ## Module contracts
 
+- `transport/Signal.zig` parses bounded, borrowed signaling text and writes
+  canonical envelopes into caller storage. See [signaling text](signaling.md).
 - `transport/framing.zig` splits and reassembles bounded NetherNet messages.
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound
