@@ -1,0 +1,21 @@
+{
+    "schema": 1,
+    "oracle": {
+        "repository": "https://github.com/axolotl-pm/nethernet",
+        "branch": "master",
+        "revision": "6ecacdaed3b0605a6a523235e5536f9c09ea56fd",
+        "license": "LGPL-3.0-or-later"
+    },
+    "generator_sha256": "b7885598a5869800505ad427303472e41a5a14940ee9ded360917a885887b66f",
+    "files": {
+        "framing.json": {
+            "bytes": 41865,
+            "sha256": "21ae01653fc597bc0f2d41e5acd6202c5489507037d4372e5d3889abc61561ae"
+        }
+    },
+    "cases": {
+        "send": 10,
+        "receive": 11,
+        "boundaries": 5
+    }
+}

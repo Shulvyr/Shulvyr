@@ -183,7 +183,9 @@ def main() -> None:
                             f"-Doptimize={optimize}", "--summary", "all"],
                            log=output / f"probe-{optimize}.log", timeout=300, private=True)
         expected = {"cycles": 3, "binary_messages": 384, "deletion_barriers": 3,
-                    "cancelled_offers": 16, "callback_boundary_checks": 4}
+                    "framed_messages": 771, "cancelled_assemblies": 3,
+                    "native_disconnects": 3,
+                    "cancelled_offers": 16, "callback_boundary_checks": 6}
         summaries = [json.loads(line) for line in probe_output.splitlines() if line.startswith('{"cycles":')]
         if summaries != [expected]:
             raise RuntimeError("Zig native probe did not report its expected checks")

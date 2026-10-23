@@ -21,6 +21,8 @@ pub const Scheduler = @import("simulation/Scheduler.zig").Scheduler;
 pub const Runtime = @import("simulation/Runtime.zig");
 pub const JobStamp = @import("simulation/JobStamp.zig").JobStamp;
 pub const StampedBytes = @import("simulation/StampedBytes.zig").StampedBytes;
+pub const framing = @import("transport/framing.zig");
+pub const TransportSession = @import("transport/Session.zig");
 pub const cli = @import("operator/cli.zig");
 
 test {
@@ -30,4 +32,5 @@ test {
     _ = @import("registry/registry_test.zig");
     _ = @import("registry/block_test.zig");
     _ = @import("registry/palette_test.zig");
+    _ = @import("transport/framing_test.zig");
 }

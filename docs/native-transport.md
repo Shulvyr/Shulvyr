@@ -10,8 +10,8 @@ Mojang's [NetherNet guide](https://mojang.github.io/bedrock-protocol-docs/guides
 describes full ICE without trickle candidates, UDP candidates and two data
 channels. `ReliableDataChannel` is ordered and reliable. `UnreliableDataChannel`
 is unordered with zero retransmissions. The probe checks those channel settings
-and exchanges synthetic binary payloads over loopback. These payloads are not
-NetherNet framing or Bedrock packets.
+and exchanges synthetic binary payloads over loopback through the core
+[framing and session contracts](transport.md). They are not Bedrock packets.
 
 The [v1.26.51 protocol release](https://github.com/Mojang/bedrock-protocol-docs/releases/tag/v1.26.51)
 is the stable documentation candidate for protocol 2193. Its tag resolves to
@@ -71,14 +71,17 @@ building the native prefix, supply its absolute path:
 zig build test-native-transport -Dnative-transport-prefix=PATH -Doptimize=safe --summary all
 ```
 
-It checks three complete peer lifecycles, 384 binary messages, channel labels
-and reliability settings, full ICE descriptions, three deletion barriers and
-16 cancellations during gathering. Callback boundary checks cover immutable
-copies, queue saturation, text, null buffers and oversize input. Each wait has
-a deadline. The Python runner also bounds subprocess runtime.
+It checks three complete peer lifecycles and 384 application payloads carried
+by 771 framed messages, including three incomplete assemblies canceled by the
+owner. It validates labels, reliability, full ICE descriptions, three deletion
+barriers and three native disconnect events. Another 16 offers are closed
+without waiting for gathering. Callback boundary checks cover immutable copies,
+queue saturation, text, null buffers, empty/header-only and oversize input.
+Each wait has a deadline. The Python runner also bounds subprocess runtime.
 
-Callbacks copy borrowed C buffers into a fixed-capacity mailbox. Saturation
-fails the probe. The owner handles channel IDs and message validation. A held
+Callbacks copy borrowed C frames and their session identities into a fixed-capacity
+mailbox. Saturation fails the probe. The owner handles channel IDs, session state,
+frame reassembly and message validation. A held
 native callback must finish before deletion returns. All callback contexts
 outlive channel/peer deletion and the blocking `rtcCleanup` call. Never call
 cleanup from a callback or wait for owner work from a callback.

@@ -25,6 +25,7 @@ python tools/check_math_fixtures.py
 python tools/generate_registries.py --check
 python tools/check_registry_fixtures.py
 python tools/check_block_fixtures.py
+python tools/check_framing_fixtures.py
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 ```
@@ -39,6 +40,10 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
 
 ## Module contracts
 
+- `transport/framing.zig` splits and reassembles bounded NetherNet messages.
+  `transport/Session.zig` validates callback identities, channel settings and
+  lifecycle transitions on the owner. See [transport contracts](transport.md)
+  for limits, ownership, error policy and oracle evidence.
 - `foundation/binary.zig` borrows input and output buffers. Failed reads restore
   the cursor, failed writes preserve the destination. Variable integers are
   canonical unsigned LEB128 with optional signed ZigZag encoding. Text uses a

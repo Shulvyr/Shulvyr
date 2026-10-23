@@ -25,6 +25,8 @@
         "tools/check_registry_fixtures.py",
         "tools/generate_block_fixtures.php",
         "tools/check_block_fixtures.py",
+        "tools/generate_framing_fixtures.php",
+        "tools/check_framing_fixtures.py",
         "tools/native-transport/build_probe.py",
         "tools/native-transport/test_build_probe.py",
         "tools/native-transport/probe.zig",

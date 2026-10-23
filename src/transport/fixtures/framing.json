@@ -1,0 +1,1638 @@
+{
+    "oracle": {
+        "repository": "https://github.com/axolotl-pm/nethernet",
+        "branch": "master",
+        "revision": "6ecacdaed3b0605a6a523235e5536f9c09ea56fd",
+        "license": "LGPL-3.0-or-later"
+    },
+    "send": [
+        {
+            "name": "empty",
+            "payload_hex": "",
+            "capacity": 4,
+            "frames_hex": []
+        },
+        {
+            "name": "one",
+            "payload_hex": "61",
+            "capacity": 1,
+            "frames_hex": [
+                "0061"
+            ]
+        },
+        {
+            "name": "short",
+            "payload_hex": "68656c6c6f",
+            "capacity": 8,
+            "frames_hex": [
+                "0068656c6c6f"
+            ]
+        },
+        {
+            "name": "exact",
+            "payload_hex": "6162636465666768",
+            "capacity": 8,
+            "frames_hex": [
+                "006162636465666768"
+            ]
+        },
+        {
+            "name": "split",
+            "payload_hex": "6162636465666768696a",
+            "capacity": 4,
+            "frames_hex": [
+                "0261626364",
+                "0165666768",
+                "00696a"
+            ]
+        },
+        {
+            "name": "binary",
+            "payload_hex": "00ff800001fe7f",
+            "capacity": 2,
+            "frames_hex": [
+                "0300ff",
+                "028000",
+                "0101fe",
+                "007f"
+            ]
+        },
+        {
+            "name": "maximum_fragment_count",
+            "payload_hex": "787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878",
+            "capacity": 1,
+            "frames_hex": [
+                "fe78",
+                "fd78",
+                "fc78",
+                "fb78",
+                "fa78",
+                "f978",
+                "f878",
+                "f778",
+                "f678",
+                "f578",
+                "f478",
+                "f378",
+                "f278",
+                "f178",
+                "f078",
+                "ef78",
+                "ee78",
+                "ed78",
+                "ec78",
+                "eb78",
+                "ea78",
+                "e978",
+                "e878",
+                "e778",
+                "e678",
+                "e578",
+                "e478",
+                "e378",
+                "e278",
+                "e178",
+                "e078",
+                "df78",
+                "de78",
+                "dd78",
+                "dc78",
+                "db78",
+                "da78",
+                "d978",
+                "d878",
+                "d778",
+                "d678",
+                "d578",
+                "d478",
+                "d378",
+                "d278",
+                "d178",
+                "d078",
+                "cf78",
+                "ce78",
+                "cd78",
+                "cc78",
+                "cb78",
+                "ca78",
+                "c978",
+                "c878",
+                "c778",
+                "c678",
+                "c578",
+                "c478",
+                "c378",
+                "c278",
+                "c178",
+                "c078",
+                "bf78",
+                "be78",
+                "bd78",
+                "bc78",
+                "bb78",
+                "ba78",
+                "b978",
+                "b878",
+                "b778",
+                "b678",
+                "b578",
+                "b478",
+                "b378",
+                "b278",
+                "b178",
+                "b078",
+                "af78",
+                "ae78",
+                "ad78",
+                "ac78",
+                "ab78",
+                "aa78",
+                "a978",
+                "a878",
+                "a778",
+                "a678",
+                "a578",
+                "a478",
+                "a378",
+                "a278",
+                "a178",
+                "a078",
+                "9f78",
+                "9e78",
+                "9d78",
+                "9c78",
+                "9b78",
+                "9a78",
+                "9978",
+                "9878",
+                "9778",
+                "9678",
+                "9578",
+                "9478",
+                "9378",
+                "9278",
+                "9178",
+                "9078",
+                "8f78",
+                "8e78",
+                "8d78",
+                "8c78",
+                "8b78",
+                "8a78",
+                "8978",
+                "8878",
+                "8778",
+                "8678",
+                "8578",
+                "8478",
+                "8378",
+                "8278",
+                "8178",
+                "8078",
+                "7f78",
+                "7e78",
+                "7d78",
+                "7c78",
+                "7b78",
+                "7a78",
+                "7978",
+                "7878",
+                "7778",
+                "7678",
+                "7578",
+                "7478",
+                "7378",
+                "7278",
+                "7178",
+                "7078",
+                "6f78",
+                "6e78",
+                "6d78",
+                "6c78",
+                "6b78",
+                "6a78",
+                "6978",
+                "6878",
+                "6778",
+                "6678",
+                "6578",
+                "6478",
+                "6378",
+                "6278",
+                "6178",
+                "6078",
+                "5f78",
+                "5e78",
+                "5d78",
+                "5c78",
+                "5b78",
+                "5a78",
+                "5978",
+                "5878",
+                "5778",
+                "5678",
+                "5578",
+                "5478",
+                "5378",
+                "5278",
+                "5178",
+                "5078",
+                "4f78",
+                "4e78",
+                "4d78",
+                "4c78",
+                "4b78",
+                "4a78",
+                "4978",
+                "4878",
+                "4778",
+                "4678",
+                "4578",
+                "4478",
+                "4378",
+                "4278",
+                "4178",
+                "4078",
+                "3f78",
+                "3e78",
+                "3d78",
+                "3c78",
+                "3b78",
+                "3a78",
+                "3978",
+                "3878",
+                "3778",
+                "3678",
+                "3578",
+                "3478",
+                "3378",
+                "3278",
+                "3178",
+                "3078",
+                "2f78",
+                "2e78",
+                "2d78",
+                "2c78",
+                "2b78",
+                "2a78",
+                "2978",
+                "2878",
+                "2778",
+                "2678",
+                "2578",
+                "2478",
+                "2378",
+                "2278",
+                "2178",
+                "2078",
+                "1f78",
+                "1e78",
+                "1d78",
+                "1c78",
+                "1b78",
+                "1a78",
+                "1978",
+                "1878",
+                "1778",
+                "1678",
+                "1578",
+                "1478",
+                "1378",
+                "1278",
+                "1178",
+                "1078",
+                "0f78",
+                "0e78",
+                "0d78",
+                "0c78",
+                "0b78",
+                "0a78",
+                "0978",
+                "0878",
+                "0778",
+                "0678",
+                "0578",
+                "0478",
+                "0378",
+                "0278",
+                "0178",
+                "0078"
+            ]
+        },
+        {
+            "name": "too_many_fragments",
+            "payload_hex": "78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878",
+            "capacity": 1,
+            "error": true
+        },
+        {
+            "name": "invalid_zero_capacity",
+            "payload_hex": "61",
+            "capacity": 0,
+            "error": true
+        },
+        {
+            "name": "invalid_large_capacity",
+            "payload_hex": "61",
+            "capacity": 262144,
+            "error": true
+        }
+    ],
+    "receive": [
+        {
+            "name": "whole",
+            "reliable": true,
+            "limit": 8,
+            "frames_hex": [
+                "0068656c6c6f"
+            ],
+            "results": [
+                {
+                    "payload_hex": "68656c6c6f"
+                }
+            ]
+        },
+        {
+            "name": "split",
+            "reliable": true,
+            "limit": 8,
+            "frames_hex": [
+                "026162",
+                "0163",
+                "006465"
+            ],
+            "results": [
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "payload_hex": "6162636465"
+                }
+            ]
+        },
+        {
+            "name": "skip_then_recover",
+            "reliable": true,
+            "limit": 8,
+            "frames_hex": [
+                "036161",
+                "016262",
+                "006363"
+            ],
+            "results": [
+                {
+                    "pending": true
+                },
+                {
+                    "error": true
+                },
+                {
+                    "payload_hex": "6363"
+                }
+            ]
+        },
+        {
+            "name": "duplicate_then_recover",
+            "reliable": true,
+            "limit": 8,
+            "frames_hex": [
+                "016161",
+                "016262",
+                "006363"
+            ],
+            "results": [
+                {
+                    "pending": true
+                },
+                {
+                    "error": true
+                },
+                {
+                    "payload_hex": "6363"
+                }
+            ]
+        },
+        {
+            "name": "premature_final",
+            "reliable": true,
+            "limit": 8,
+            "frames_hex": [
+                "026161",
+                "006262",
+                "006363"
+            ],
+            "results": [
+                {
+                    "pending": true
+                },
+                {
+                    "error": true
+                },
+                {
+                    "payload_hex": "6363"
+                }
+            ]
+        },
+        {
+            "name": "short_then_recover",
+            "reliable": true,
+            "limit": 8,
+            "frames_hex": [
+                "",
+                "00",
+                "0078"
+            ],
+            "results": [
+                {
+                    "error": true
+                },
+                {
+                    "error": true
+                },
+                {
+                    "payload_hex": "78"
+                }
+            ]
+        },
+        {
+            "name": "limit_then_recover",
+            "reliable": true,
+            "limit": 4,
+            "frames_hex": [
+                "01616263",
+                "006465",
+                "0078"
+            ],
+            "results": [
+                {
+                    "pending": true
+                },
+                {
+                    "error": true
+                },
+                {
+                    "payload_hex": "78"
+                }
+            ]
+        },
+        {
+            "name": "unreliable",
+            "reliable": false,
+            "limit": 8,
+            "frames_hex": [
+                "00616263",
+                "00646566"
+            ],
+            "results": [
+                {
+                    "payload_hex": "616263"
+                },
+                {
+                    "payload_hex": "646566"
+                }
+            ]
+        },
+        {
+            "name": "unreliable_fragment_then_recover",
+            "reliable": false,
+            "limit": 8,
+            "frames_hex": [
+                "01616263",
+                "0078"
+            ],
+            "results": [
+                {
+                    "error": true
+                },
+                {
+                    "payload_hex": "78"
+                }
+            ]
+        },
+        {
+            "name": "binary",
+            "reliable": true,
+            "limit": 8,
+            "frames_hex": [
+                "0100ff",
+                "008000"
+            ],
+            "results": [
+                {
+                    "pending": true
+                },
+                {
+                    "payload_hex": "00ff8000"
+                }
+            ]
+        },
+        {
+            "name": "byte_countdown_range",
+            "reliable": true,
+            "limit": 256,
+            "frames_hex": [
+                "ff78",
+                "fe78",
+                "fd78",
+                "fc78",
+                "fb78",
+                "fa78",
+                "f978",
+                "f878",
+                "f778",
+                "f678",
+                "f578",
+                "f478",
+                "f378",
+                "f278",
+                "f178",
+                "f078",
+                "ef78",
+                "ee78",
+                "ed78",
+                "ec78",
+                "eb78",
+                "ea78",
+                "e978",
+                "e878",
+                "e778",
+                "e678",
+                "e578",
+                "e478",
+                "e378",
+                "e278",
+                "e178",
+                "e078",
+                "df78",
+                "de78",
+                "dd78",
+                "dc78",
+                "db78",
+                "da78",
+                "d978",
+                "d878",
+                "d778",
+                "d678",
+                "d578",
+                "d478",
+                "d378",
+                "d278",
+                "d178",
+                "d078",
+                "cf78",
+                "ce78",
+                "cd78",
+                "cc78",
+                "cb78",
+                "ca78",
+                "c978",
+                "c878",
+                "c778",
+                "c678",
+                "c578",
+                "c478",
+                "c378",
+                "c278",
+                "c178",
+                "c078",
+                "bf78",
+                "be78",
+                "bd78",
+                "bc78",
+                "bb78",
+                "ba78",
+                "b978",
+                "b878",
+                "b778",
+                "b678",
+                "b578",
+                "b478",
+                "b378",
+                "b278",
+                "b178",
+                "b078",
+                "af78",
+                "ae78",
+                "ad78",
+                "ac78",
+                "ab78",
+                "aa78",
+                "a978",
+                "a878",
+                "a778",
+                "a678",
+                "a578",
+                "a478",
+                "a378",
+                "a278",
+                "a178",
+                "a078",
+                "9f78",
+                "9e78",
+                "9d78",
+                "9c78",
+                "9b78",
+                "9a78",
+                "9978",
+                "9878",
+                "9778",
+                "9678",
+                "9578",
+                "9478",
+                "9378",
+                "9278",
+                "9178",
+                "9078",
+                "8f78",
+                "8e78",
+                "8d78",
+                "8c78",
+                "8b78",
+                "8a78",
+                "8978",
+                "8878",
+                "8778",
+                "8678",
+                "8578",
+                "8478",
+                "8378",
+                "8278",
+                "8178",
+                "8078",
+                "7f78",
+                "7e78",
+                "7d78",
+                "7c78",
+                "7b78",
+                "7a78",
+                "7978",
+                "7878",
+                "7778",
+                "7678",
+                "7578",
+                "7478",
+                "7378",
+                "7278",
+                "7178",
+                "7078",
+                "6f78",
+                "6e78",
+                "6d78",
+                "6c78",
+                "6b78",
+                "6a78",
+                "6978",
+                "6878",
+                "6778",
+                "6678",
+                "6578",
+                "6478",
+                "6378",
+                "6278",
+                "6178",
+                "6078",
+                "5f78",
+                "5e78",
+                "5d78",
+                "5c78",
+                "5b78",
+                "5a78",
+                "5978",
+                "5878",
+                "5778",
+                "5678",
+                "5578",
+                "5478",
+                "5378",
+                "5278",
+                "5178",
+                "5078",
+                "4f78",
+                "4e78",
+                "4d78",
+                "4c78",
+                "4b78",
+                "4a78",
+                "4978",
+                "4878",
+                "4778",
+                "4678",
+                "4578",
+                "4478",
+                "4378",
+                "4278",
+                "4178",
+                "4078",
+                "3f78",
+                "3e78",
+                "3d78",
+                "3c78",
+                "3b78",
+                "3a78",
+                "3978",
+                "3878",
+                "3778",
+                "3678",
+                "3578",
+                "3478",
+                "3378",
+                "3278",
+                "3178",
+                "3078",
+                "2f78",
+                "2e78",
+                "2d78",
+                "2c78",
+                "2b78",
+                "2a78",
+                "2978",
+                "2878",
+                "2778",
+                "2678",
+                "2578",
+                "2478",
+                "2378",
+                "2278",
+                "2178",
+                "2078",
+                "1f78",
+                "1e78",
+                "1d78",
+                "1c78",
+                "1b78",
+                "1a78",
+                "1978",
+                "1878",
+                "1778",
+                "1678",
+                "1578",
+                "1478",
+                "1378",
+                "1278",
+                "1178",
+                "1078",
+                "0f78",
+                "0e78",
+                "0d78",
+                "0c78",
+                "0b78",
+                "0a78",
+                "0978",
+                "0878",
+                "0778",
+                "0678",
+                "0578",
+                "0478",
+                "0378",
+                "0278",
+                "0178",
+                "0078"
+            ],
+            "results": [
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "pending": true
+                },
+                {
+                    "payload_hex": "78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878"
+                }
+            ]
+        }
+    ],
+    "boundaries": [
+        {
+            "length": 262142,
+            "payload_sha256": "a1be19deb0efc96c4bb538a3a602ee37ecf54cce4e532e9ec6c7b64834ad67f8",
+            "frames": [
+                {
+                    "length": 262143,
+                    "header": 0,
+                    "sha256": "f7cf04411639b304bf5bbf1c65afd6e6d0f8d2d49327ccf933ad5e9e6fde312c"
+                }
+            ]
+        },
+        {
+            "length": 262143,
+            "payload_sha256": "9c5e0a152e3ba5dd6b51c88fcf8b71357613140932cc6a2fa64b54ac553d275d",
+            "frames": [
+                {
+                    "length": 262144,
+                    "header": 0,
+                    "sha256": "ca447f682fd9455bfd4f613b9d4b56f072cf278025deec457e9aa3c58c842045"
+                }
+            ]
+        },
+        {
+            "length": 262144,
+            "payload_sha256": "2ed7cf061025999f54629de5ded98360c1323ed95707e1be3f540ac8d1260958",
+            "frames": [
+                {
+                    "length": 262144,
+                    "header": 1,
+                    "sha256": "ae26281180abee668c6bb49176f17c973f0ac4e2b8c31cec63d59a684c12f640"
+                },
+                {
+                    "length": 2,
+                    "header": 0,
+                    "sha256": "085edad400785fca7e7e90b1fac4beb776fc2beee5aa24352d5f39b5d57efcad"
+                }
+            ]
+        },
+        {
+            "length": 262145,
+            "payload_sha256": "6ee7fa337a3dfef8df16556009215b7b13aac6f2dde0f831599063970a75bc1f",
+            "frames": [
+                {
+                    "length": 262144,
+                    "header": 1,
+                    "sha256": "ae26281180abee668c6bb49176f17c973f0ac4e2b8c31cec63d59a684c12f640"
+                },
+                {
+                    "length": 3,
+                    "header": 0,
+                    "sha256": "e8843b1e1de4359db1148f1e1b569a1e215fb70f36e296bfb4b9f1c624080287"
+                }
+            ]
+        },
+        {
+            "length": 524286,
+            "payload_sha256": "0bf7ef73f34f32737f424f0d66a4a98fcd9cbcbea09897e97481ffb376774dda",
+            "frames": [
+                {
+                    "length": 262144,
+                    "header": 1,
+                    "sha256": "ae26281180abee668c6bb49176f17c973f0ac4e2b8c31cec63d59a684c12f640"
+                },
+                {
+                    "length": 262144,
+                    "header": 0,
+                    "sha256": "44f68e89e109805643394f592678659d898e352d28f39084b8607a90b8da510f"
+                }
+            ]
+        }
+    ]
+}
