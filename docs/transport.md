@@ -257,8 +257,73 @@ at the revision in the fixture manifest. Defaults retain its message and receive
 byte limits. Shulvyr adds explicit queue, allocation and owner work limits.
 Ingress limits and partial-assembly deadlines remain enforced during graceful
 disconnect. These resource policies are stricter than the upstream grace path,
-which skips its normal queue checks. Registry lifetime and application admission
-across multiple connections remain the next integration boundary.
+which skips its normal queue checks.
+
+## Connection registry and owner scheduling
+
+`Manager(send_capacity, receive_capacity, capacity)` owns a connection pool and
+one reaper for its lifetime. Its runtime count limit cannot exceed the compiled
+capacity. Pool entries keep connections at fixed addresses. The owner ID must
+be nonzero and unique while old session IDs or cleanup tickets can exist.
+Slot reuse increments generation, and exhausted generations retire the slot.
+Use scoped manager methods for owner operations. `get` borrows a connection
+until explicit retirement, so callback bindings can retain its inbox without
+moving it or looking up owner state on a native thread.
+
+Call `admit` before creating a provider. It validates configuration, checks count
+and byte admission, allocates disjoint receive buffers and reserves native
+cleanup capacity. No open event is delivered until the ID is registered. Failed
+admission leaves no native resource to clean up. Attach the provider before
+publishing callbacks, as with a standalone connection.
+
+The aggregate payload reservation for each admitted connection is:
+
+```text
+reliable receive storage + unreliable receive storage
++ maximum incoming copied bytes + maximum retained outgoing payload bytes
+```
+
+Reliable storage uses the configured message limit. Unreliable storage uses
+the smaller of that limit and one frame's payload. Admission checks overflow
+and the aggregate limit before allocation. This is a conservative reservation
+for application payload storage, including idle connections. It excludes pool
+metadata, allocator overhead, provider contexts, native queues and transport
+control traffic. Pool metadata is allocated once at the bounded count limit.
+Reported native buffering still has each connection's separate outbox limit.
+This policy does not establish a total process or native-memory ceiling.
+
+`beginTick` takes an increasing owner tick, monotonic time, shared sender scratch
+and explicit quotas. Connection visits include empty slots and advance a
+persistent round-robin cursor. Each visited connection gets the supplied
+per-connection budget. Scratch preflight checks every live receive buffer,
+outbound snapshot and manager/reaper metadata before any provider call. This
+scan is bounded by the configured pool and compiled send capacities, independent
+of the visit quota. Only a connection updated in the current tick can consume
+application input. Negotiation, assembly and grace deadlines are observed on
+its next scheduled update, so a small visit quota can delay that observation.
+
+`nextEvent(allow_input)` has a separate round-robin cursor, event quota and
+slot-visit quota shared across the tick. A false argument reads no application
+frame, including partial fragments. It still delivers open, receipt, close,
+cleanup-failure and finalized events. Native results are collected and routed
+by the manager even when input is paused. Repeated pulls cannot reset a
+connection's frame, byte or 64-message quota. Message views expire on the next
+manager mutation. Processing an open or message may immediately disconnect its
+connection, which subsequent pulls observe before reading more input.
+
+A finalized event returns the quiesced provider task once. Handle that task
+before calling `retire(id)`, which frees receive storage and releases count and
+payload reservations. Those credits remain charged through pending events,
+queued frames and leases, even when the reaper has finished. Native contexts
+must live outside reclaimed pool entries and outlive every callback barrier.
+Stale IDs reject before touching a replacement connection.
+
+`requestStop` refuses admission, closes existing connections and stops new reaper
+reservations. Keep ticking, consuming control events, retrying failed cleanup
+and explicitly retiring connections. `join` refuses while any entry remains,
+and `tryJoin` supports owner polling. Deinitialize after joining the worker.
+Provider creation, signaling and the standalone server runner remain separate
+integration boundaries.
 
 ## Verification
 
@@ -294,7 +359,12 @@ Reaper tests cover actual worker execution, reservation/result pressure, failed
 finalizer retry, shutdown admission, stale tickets, generation exhaustion and
 allocation failures. Connection tests additionally cover event ordering, graceful deadlines, the
 64-message quota, held ingress credits, scope/clock rejection, provider cleanup
-retry and allocation faults. The
+retry and allocation faults. Manager tests cover aggregate admission before allocation, credit retention,
+registered opens, input backpressure, round-robin fairness, per-tick quotas,
+cross-connection aliasing, stale scopes, generation exhaustion, allocation
+faults and shutdown with a held finalizer. They verify Shulvyr's resource and
+scheduling contracts. The upstream PHP manager is covered by source review and
+its packet quota constant in the fixture generator. The
 [native probe](native-transport.md) routes copied frames through the same core
 and cancels a partial assembly before closing native connections. Native queue
 memory, real client signaling and authenticated gameplay remain separate gates.

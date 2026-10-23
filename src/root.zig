@@ -32,6 +32,8 @@ pub const Reaper = @import("transport/Reaper.zig").Reaper;
 pub const teardown = @import("transport/Reaper.zig");
 pub const Connection = @import("transport/Connection.zig").Connection;
 pub const connection = @import("transport/Connection.zig");
+pub const ConnectionManager = @import("transport/Manager.zig").Manager;
+pub const connections = @import("transport/Manager.zig");
 pub const cli = @import("operator/cli.zig");
 
 test {
@@ -46,4 +48,5 @@ test {
     _ = @import("transport/inbox_test.zig");
     _ = @import("transport/reaper_test.zig");
     _ = @import("transport/connection_test.zig");
+    _ = @import("transport/manager_test.zig");
 }

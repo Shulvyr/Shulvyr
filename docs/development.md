@@ -50,6 +50,8 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   contexts until successful quiescence and explicit owner collection.
   `transport/Connection.zig` composes these parts into one connection lifecycle,
   bounded event pulls and graceful disconnect with scoped finalizer routing.
+  `transport/Manager.zig` owns a persistent connection pool and reaper, reserves
+  aggregate application-payload capacity and schedules bounded round-robin work.
   See [transport contracts](transport.md)
   for limits, ownership, error policy and oracle evidence.
 - `foundation/binary.zig` borrows input and output buffers. Failed reads restore

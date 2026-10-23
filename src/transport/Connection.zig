@@ -15,6 +15,13 @@ pub const Config = struct {
     incoming_bytes: usize = 256 * 10000,
     outgoing: outbound.Config = .{ .limits = .{ .{ .message_bytes = 256 * 9999 }, .{ .message_bytes = 256 * 9999 } } },
     negotiation_timeout_ns: u64 = 10 * std.time.ns_per_s,
+
+    pub fn validate(self: Config) !void {
+        try self.receive.validate();
+        try self.outgoing.validate();
+        if (self.incoming_bytes < self.receive.frame_bytes) return error.InvalidBudget;
+        if (self.negotiation_timeout_ns == 0) return error.InvalidTimeout;
+    }
 };
 pub const Budget = struct {
     send: outbound.Budget,
@@ -31,6 +38,16 @@ pub const Event = union(enum) {
     closed: struct { session: Session.Id, reason: Session.CloseReason, flush_expired: bool },
     cleanup_failed: Session.Id,
     finalized: struct { session: Session.Id, task: ?teardown.Task },
+
+    pub fn sessionId(self: Event) Session.Id {
+        return switch (self) {
+            .opened, .cleanup_failed => |id| id,
+            .sent => |completion| completion.ticket.session,
+            .message => |message| message.session,
+            .closed => |closed| closed.session,
+            .finalized => |done| done.session,
+        };
+    }
 };
 pub const Stats = struct { sent: outbound.Stats = .{}, drain_completions: usize = 0, frames: usize = 0, bytes: usize = 0, packets: usize = 0, receive_limited: bool = false };
 
@@ -289,6 +306,14 @@ pub fn Connection(comptime send_capacity: usize, comptime receive_capacity: usiz
                 return .{ .finalized = .{ .session = self.session.id, .task = task } };
             }
             return null;
+        }
+
+        /// Control delivery never reads an application frame. Keep consuming
+        /// control events when application packet admission is paused.
+        pub fn nextControlEvent(self: *Self, id: Session.Id) !?Event {
+            try self.identity(id);
+            if (self.phase == .retired) return null;
+            return self.notification();
         }
 
         /// Pull only when the application can accept another event. Message

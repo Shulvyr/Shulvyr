@@ -10,6 +10,12 @@ pub const Config = struct {
     limits: [2]framing.Limits = .{ .{}, .{} },
     payload_bytes: usize = 4 * 1024 * 1024,
     buffered_bytes: u64 = 4 * 1024 * 1024,
+
+    pub fn validate(self: Config) !void {
+        for (self.limits) |limits| try limits.validate();
+        if (self.payload_bytes == 0 or self.buffered_bytes < @max(self.limits[0].frame_bytes, self.limits[1].frame_bytes))
+            return error.InvalidBudget;
+    }
 };
 pub const Budget = struct { steps: usize, wire_bytes: usize };
 pub const Stats = struct {
@@ -67,9 +73,7 @@ pub fn Outbox(comptime capacity: usize) type {
 
         pub fn init(session_id: Session.Id, config: Config) !Self {
             if (session_id.owner == 0 or session_id.generation == 0) return error.InvalidIdentity;
-            for (config.limits) |limits| try limits.validate();
-            if (config.payload_bytes == 0 or config.buffered_bytes < @max(config.limits[0].frame_bytes, config.limits[1].frame_bytes))
-                return error.InvalidBudget;
+            try config.validate();
             return .{ .session_id = session_id, .config = config };
         }
 

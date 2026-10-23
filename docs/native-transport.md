@@ -72,23 +72,28 @@ zig build test-native-transport -Dnative-transport-prefix=PATH -Doptimize=safe -
 ```
 
 It checks three complete peer lifecycles, 384 application payloads and 384
-reported-drain receipts. Payloads pass through the core Connection controller,
-its bounded Outbox and FrameSink adapter, with one pump step per owner iteration
-to force yielding between fragments. They travel in 771 framed messages, including three incomplete
-assemblies canceled by the owner. It validates labels, protocol, reliability,
+reported-drain receipts. A persistent core Manager registers connections before
+binding the provider, with a four-slot pool and aggregate payload reservations.
+Payloads pass through its Connection controller, bounded Outbox and FrameSink
+adapter, with one pump step per owner iteration to yield between fragments.
+They travel in 771 framed messages, including three incomplete assemblies
+canceled by the owner. It validates labels, protocol, reliability,
 full ICE descriptions, three deletion barriers and three native disconnect
-events. A separate connected pair requests graceful disconnect immediately
-after enqueueing a fragmented reliable message. It must report one drained
-receipt before close, preserve the requested reason and retire without grace
-expiry. This does not assert delivery to the remote application.
-A reusable Reaper worker finalizes all 42 peer contexts across those
+events. A separate connected pair pauses application reads while a fragmented
+reliable message arrives. Three frames retain their ingress credits while its
+receipt still flows. Resuming input must deliver the exact payload once. It then
+requests graceful disconnect immediately after enqueueing another reliable
+message. It must report that message's drained receipt before close, preserve
+the requested reason and retire without grace expiry. This does not assert
+delivery to the remote application.
+The manager's reusable Reaper worker finalizes all 42 peer contexts across those
 cycles, canceled offers, graceful disconnect and the discovery-overflow case.
-Native channels and peers transfer to the worker before deletion, with scoped result validation
-before owner retirement. While a real callback is held during deletion, the
-owner completes three logical ticks per cycle and observes no completion.
-After release, deletion finishes and the remote peer's closure is observed.
-Another 16 offers are closed
-without waiting for gathering. Callback boundary checks cover immutable copies,
+Native channels and peers transfer to the worker before deletion, with scoped
+result validation before owner retirement. While a real callback is held during
+deletion, the owner completes three logical ticks and manager updates per cycle
+and observes no finalizer completion. After release, deletion finishes and the
+remote peer's closure is observed. Another 16 offers are closed without waiting
+for gathering. Callback boundary checks cover immutable copies,
 queue saturation, text, null buffers, empty/header-only and oversize input,
 plus a mismatched native channel ID. A separate connected pair opens five extra
 channels against a four-slot discovery queue. The overflowing channel has no
@@ -110,11 +115,14 @@ outlive channel/peer deletion and the blocking `rtcCleanup` call. Never call
 cleanup from a callback or wait for owner work from a callback.
 
 The Connection controller closes Session, Inbox and Outbox before submitting
-finalization.
-Callback contexts, discovery queues and copied frames remain alive until the
+finalization. Callback contexts, discovery queues and copied frames remain alive until the
 worker's native deletion barriers complete. Global `rtcCleanup` runs in the
-probe's management shutdown phase after every peer is retired. This remains
-development tooling, separate from the finite server runner.
+probe's management shutdown phase after per-peer finalization and before pool
+entries are reclaimed. This remains development tooling, separate from the
+finite server runner.
+The same manager reuses pool slots 40 times across these scenarios. Each retired
+ID must stop resolving. Count and payload reservations return to zero only after
+all finalized events are handled and their connections explicitly retired.
 
 The pinned C API's
 [global cleanup](https://github.com/paullouisageneau/libdatachannel/blob/bdc5ff28e9d3b863144c94a677ecf5bf043aaf15/src/capi.cpp#L1987)
