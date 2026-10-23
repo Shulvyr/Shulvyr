@@ -71,9 +71,11 @@ building the native prefix, supply its absolute path:
 zig build test-native-transport -Dnative-transport-prefix=PATH -Doptimize=safe --summary all
 ```
 
-It checks three complete peer lifecycles and 384 application payloads carried
-by 771 framed messages, including three incomplete assemblies canceled by the
-owner. It validates labels, reliability, full ICE descriptions, three deletion
+It checks three complete peer lifecycles, 384 application payloads and 384
+reported-drain receipts. Payloads pass through the bounded core Outbox and
+FrameSink adapter, with one pump step per owner iteration to force yielding
+between fragments. They travel in 771 framed messages, including three incomplete
+assemblies canceled by the owner. It validates labels, reliability, full ICE descriptions, three deletion
 barriers and three native disconnect events. Another 16 offers are closed
 without waiting for gathering. Callback boundary checks cover immutable copies,
 queue saturation, text, null buffers, empty/header-only and oversize input.
@@ -81,8 +83,8 @@ Each wait has a deadline. The Python runner also bounds subprocess runtime.
 
 Callbacks copy borrowed C frames and their session identities into a fixed-capacity
 mailbox. Saturation fails the probe. The owner handles channel IDs, session state,
-frame reassembly and message validation. A held
-native callback must finish before deletion returns. All callback contexts
+frame reassembly and message validation. Each receive pass processes at most
+16 events per peer. A held native callback must finish before deletion returns. All callback contexts
 outlive channel/peer deletion and the blocking `rtcCleanup` call. Never call
 cleanup from a callback or wait for owner work from a callback.
 

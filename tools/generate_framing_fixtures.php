@@ -30,15 +30,16 @@ if (gitOutput($directory, ['rev-parse', 'HEAD']) !== $revision || gitOutput($dir
     throw new RuntimeException('NetherNet must be clean at the recorded default-branch revision');
 }
 spl_autoload_register(static function (string $class) use ($directory): void {
-    if ($class === 'pocketmine\\nethernet\\NetherNetException') {
-        require $directory . '/src/NetherNetException.php';
-        return;
-    }
-    $prefix = 'pocketmine\\nethernet\\protocol\\framing\\';
+    $prefix = 'pocketmine\\nethernet\\';
     if (!str_starts_with($class, $prefix)) {
         throw new RuntimeException('Unexpected oracle dependency: ' . $class);
     }
-    require $directory . '/src/protocol/framing/' . substr($class, strlen($prefix)) . '.php';
+    $relative = substr($class, strlen($prefix));
+    if ($relative === 'FakePeerTransport' || $relative === 'FakeMessageChannel') {
+        require $directory . '/tests/phpunit/' . $relative . '.php';
+        return;
+    }
+    require $directory . '/src/' . str_replace('\\', '/', $relative) . '.php';
 });
 $send = [];
 $cases = [
@@ -98,8 +99,42 @@ $data = ['oracle' => ['repository' => 'https://github.com/axolotl-pm/nethernet',
     'revision' => $revision, 'license' => 'LGPL-3.0-or-later'], 'send' => $send, 'receive' => $receive, 'boundaries' => $boundaries];
 $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
 file_put_contents(__DIR__ . '/../src/transport/fixtures/framing.json', $encoded);
+$receipts = [];
+$receiptCases = [
+    ['watermarks', [['abcdef', true], ['x', true], ['uv', false]], [0, 0], [[10, 3], [2, 3], [0, 3], [0, 0], [0, 0]]],
+    ['empty_control', [['', true]], [100, 0], [[100, 0], [0, 0], [0, 0]]],
+    ['empty_fifo', [['a', true], ['', true], ['bb', true]], [0, 0], [[5, 0], [3, 0], [0, 0]]],
+    ['both_ready', [['a', true], ['b', false], ['c', true]], [0, 0], [[4, 2], [0, 0], [0, 0]]],
+    ['overreported', [['abc', true]], [0, 0], [[8, 0], [4, 0], [3, 0], [0, 0]]],
+    ['partial_drain', [['abcdef', true], ['x', true]], [0, 0], [[10, 0], [9, 0], [3, 0], [2, 0], [1, 0], [0, 0]]],
+];
+foreach ($receiptCases as [$name, $packets, $control, $snapshots]) {
+    $transport = new \pocketmine\nethernet\FakePeerTransport();
+    $transport->state = \pocketmine\nethernet\transport\TransportState::CONNECTED;
+    $reliable = new \pocketmine\nethernet\FakeMessageChannel(\pocketmine\nethernet\protocol\Reliability::RELIABLE);
+    $unreliable = new \pocketmine\nethernet\FakeMessageChannel(\pocketmine\nethernet\protocol\Reliability::UNRELIABLE);
+    $session = new \pocketmine\nethernet\session\Session(7, $transport,
+        new \pocketmine\nethernet\transport\ChannelPair($reliable, $unreliable),
+        new \pocketmine\nethernet\utils\InternetAddress('192.0.2.10', 5000, 4), null,
+        new Segmenter(4), new \pocketmine\nethernet\transport\ConnectionBudgetConfiguration());
+    $inputs = [];
+    foreach ($packets as $index => [$payload, $isReliable]) {
+        $session->send($payload, $isReliable ? \pocketmine\nethernet\protocol\Reliability::RELIABLE : \pocketmine\nethernet\protocol\Reliability::UNRELIABLE, $index + 1);
+        $inputs[] = ['payload_hex' => bin2hex($payload), 'reliable' => $isReliable];
+    }
+    $phases = [];
+    foreach ($snapshots as [$r, $u]) {
+        $reliable->buffered = $r;
+        $unreliable->buffered = $u;
+        $phases[] = ['buffered' => [$r, $u], 'acknowledged' => $session->takeAcknowledgedReceipts()];
+    }
+    $receipts[] = ['name' => $name, 'packets' => $inputs, 'control_buffered' => $control, 'phases' => $phases];
+}
+$receiptEncoded = json_encode(['oracle' => $data['oracle'], 'cases' => $receipts], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+file_put_contents(__DIR__ . '/../src/transport/fixtures/receipts.json', $receiptEncoded);
 $manifest = ['schema' => 1, 'oracle' => $data['oracle'], 'generator_sha256' => hash_file('sha256', __FILE__),
-    'files' => ['framing.json' => ['bytes' => strlen($encoded), 'sha256' => hash('sha256', $encoded)]],
-    'cases' => ['send' => count($send), 'receive' => count($receive), 'boundaries' => count($boundaries)]];
+    'files' => ['framing.json' => ['bytes' => strlen($encoded), 'sha256' => hash('sha256', $encoded)],
+        'receipts.json' => ['bytes' => strlen($receiptEncoded), 'sha256' => hash('sha256', $receiptEncoded)]],
+    'cases' => ['send' => count($send), 'receive' => count($receive), 'boundaries' => count($boundaries), 'receipts' => count($receipts)]];
 file_put_contents(__DIR__ . '/../src/transport/fixtures/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
-echo 'Generated ' . count($send) . ' send cases, ' . count($receive) . ' receive sequences and ' . count($boundaries) . " boundary cases\n";
+echo 'Generated ' . count($send) . ' send cases, ' . count($receive) . ' receive sequences, ' . count($boundaries) . ' boundary cases and ' . count($receipts) . " receipt sequences\n";

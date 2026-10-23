@@ -183,6 +183,7 @@ def main() -> None:
                             f"-Doptimize={optimize}", "--summary", "all"],
                            log=output / f"probe-{optimize}.log", timeout=300, private=True)
         expected = {"cycles": 3, "binary_messages": 384, "deletion_barriers": 3,
+                    "drained_receipts": 384,
                     "framed_messages": 771, "cancelled_assemblies": 3,
                     "native_disconnects": 3,
                     "cancelled_offers": 16, "callback_boundary_checks": 6}

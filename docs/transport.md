@@ -81,6 +81,55 @@ Closure is idempotent and records the first close reason. Caller storage remains
 owned by the caller.
 The core does not call a native library or free callback contexts.
 
+## Outbound admission and completion
+
+`Outbox(capacity)` belongs to one session lifetime and one owner. It keeps
+separate channel FIFOs so a blocked reliable message does not prevent an
+unreliable send. Reliable messages never interleave their fragment sequences.
+The shared slot limit includes queued messages, receipts awaiting drain and
+completed results the consumer has not collected. Completion backpressure
+therefore cannot silently lose a result.
+
+`enqueueOwned` moves a snapshot only on success. Failure leaves it with the
+caller. `enqueueCopy` checks framing, capacity and byte budgets before allocating.
+The retained-payload byte counter covers full snapshots until their last frame
+has been copied by the sink. Allocator rounding, inline queue storage and native
+transport buffers need separate accounting.
+
+`FrameSink` is a synchronous borrowed adapter bound to the same scoped session
+identity. Stale provider identities reject before a callback can run. Accepted
+frames must have been copied before return. Blocked sends accept nothing.
+The adapter cannot reenter the outbox or keep a scratch-buffer pointer.
+
+`pump` caps work steps and accepted wire bytes, including fragment headers.
+One step may make at most three sink calls. Scratch preflight scans the fixed
+queue capacity before those steps and rejects overlap with live payloads,
+session buffers or metadata. A zero-step budget performs no sink calls.
+The reported native byte limit is shared across both channels. All application
+sends to the bound native channels must use the same owner and admission path.
+
+Completion follows the
+[Axolotl Session receipt rule](https://github.com/axolotl-pm/nethernet/blob/6ecacdaed3b0605a6a523235e5536f9c09ea56fd/src/session/Session.php):
+a message becomes `drained` when the cumulative queued wire-byte watermark is
+no larger than the queued byte total minus the provider's current buffered
+amount. Receipts stay FIFO within each channel and may interleave across channels.
+This is a local queue observation, not a peer-delivery acknowledgement. Empty
+messages also wait for a provider observation. Counters refuse exhaustion
+before ownership moves.
+
+Provider errors close the logical session, release unresolved payloads and
+publish `failed` completions with the number of frames already accepted.
+`shutdown` publishes `cancelled` results and preserves an earlier close reason.
+The owner must close the actual native peer after failure or cancellation,
+especially after a partial reliable send. Drain completions before discarding
+them if their outcomes matter. Call shutdown before deinit when work remains.
+
+The native
+[buffered-amount API](https://libdatachannel.org/pages/reference.html#rtcgetbufferedamount)
+excludes transport-level buffering. These limits do not establish a bound on
+all libdatachannel, SCTP or TLS memory. Native control traffic and production
+provider resource limits remain part of the provider gate.
+
 ## Verification
 
 The [fixture manifest](../src/transport/fixtures/manifest.json) binds the generator,
@@ -97,7 +146,12 @@ zig build test --summary all
 
 Tests cover send/receive oracle cases, full-size frame hashes, binary payloads,
 retry without commit, aliasing, malformed frames, exact byte/time limits, stale
-generations, independent channels and closure. The
+generations, independent channels and closure. Receipt fixtures call the real
+upstream `Session` with its own `FakePeerTransport` and `FakeMessageChannel`
+classes, feeding controlled buffered amounts through the public receipt API.
+No PHP test classes or runtime are included in the Zig package. Outbox tests
+also cover allocation failures, queue wrap, completion pressure, shared native
+admission, bounded pump work, partial-send failure and stale providers. The
 [native probe](native-transport.md) routes copied frames through the same core
 and cancels a partial assembly before closing native connections. Native queue
 memory, real client signaling and authenticated gameplay remain separate gates.

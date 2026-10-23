@@ -27,6 +27,11 @@ pub fn Queue(comptime T: type, comptime capacity: usize) type {
             return value;
         }
 
+        /// Borrows the head until the next queue mutation, without transferring it.
+        pub fn peek(self: *Self) ?*T {
+            return if (self.count == 0) null else &self.items[self.head];
+        }
+
         fn next(index: usize) usize {
             return if (index == capacity - 1) 0 else index + 1;
         }

@@ -2,6 +2,8 @@ const std = @import("std");
 const Mailbox = @import("shulvyr").Mailbox;
 const framing = @import("shulvyr").framing;
 const Session = @import("shulvyr").TransportSession;
+const Outbox = @import("shulvyr").Outbox(8);
+const FrameSink = @import("shulvyr").FrameSink;
 const c = @import("rtc");
 
 // This development probe owns all contexts until rtcCleanup returns. It uses
@@ -109,6 +111,31 @@ fn pause(io: std.Io, start: std.Io.Timestamp) !void {
 }
 
 const labels = [_][:0]const u8{ "ReliableDataChannel", "UnreliableDataChannel" };
+const NativeSink = struct {
+    pair: *Pair,
+    peer: usize,
+
+    fn buffered(raw: *anyopaque, channel: framing.Channel) FrameSink.Error!u64 {
+        const self: *NativeSink = @ptrCast(@alignCast(raw));
+        const dc = self.pair.channels[self.peer][@backingInt(channel)];
+        if (dc < 0 or !c.rtcIsOpen(dc)) return error.Closed;
+        const amount = c.rtcGetBufferedAmount(dc);
+        if (amount < 0) return error.Failed;
+        return @intCast(amount);
+    }
+
+    fn send(raw: *anyopaque, channel: framing.Channel, frame: []const u8) FrameSink.Error!FrameSink.Admission {
+        const self: *NativeSink = @ptrCast(@alignCast(raw));
+        const dc = self.pair.channels[self.peer][@backingInt(channel)];
+        if (dc < 0 or !c.rtcIsOpen(dc)) return error.Closed;
+        if (c.rtcSendMessage(dc, frame.ptr, @intCast(frame.len)) < 0) return error.Failed;
+        return .accepted;
+    }
+
+    fn sink(self: *NativeSink) FrameSink {
+        return .{ .session_id = self.pair.contexts[self.peer].session_id, .context = self, .buffered = buffered, .send = send };
+    }
+};
 const Pair = struct {
     contexts: [2]Context,
     peers: [2]c_int = .{ -1, -1 },
@@ -117,6 +144,11 @@ const Pair = struct {
     seen: [2][2]u32 = .{ .{ 0, 0 }, .{ 0, 0 } },
     sessions: [2]Session = undefined,
     session_ready: [2]bool = .{ false, false },
+    outboxes: [2]Outbox = undefined,
+    outbox_ready: [2]bool = .{ false, false },
+    sinks: [2]NativeSink = undefined,
+    receipt_count: [2]u8 = .{ 0, 0 },
+    receipt_seen: [2]u64 = .{ 0, 0 },
     reliable_storage: [2][64]u8 = undefined,
     unreliable_storage: [2][16]u8 = undefined,
     framed_messages: usize = 0,
@@ -134,6 +166,13 @@ const Pair = struct {
             context.session_id = .{ .owner = 1, .index = @intCast(i), .generation = @as(u64, self.cycle) + 1 };
             self.sessions[i] = try Session.init(context.session_id, &self.reliable_storage[i], &self.unreliable_storage[i], .{ .frame_bytes = 17, .message_bytes = 64 }, self.now(), 15 * std.time.ns_per_s);
             self.session_ready[i] = true;
+            self.outboxes[i] = try Outbox.init(context.session_id, .{
+                .limits = .{ .{ .frame_bytes = 7, .message_bytes = 64 }, .{ .frame_bytes = 17, .message_bytes = 64 } },
+                .payload_bytes = 64,
+                .buffered_bytes = 1024,
+            });
+            self.outbox_ready[i] = true;
+            self.sinks[i] = .{ .pair = self, .peer = i };
             self.peers[i] = c.rtcCreatePeerConnection(&config);
             try check(self.peers[i]);
             c.rtcSetUserPointer(self.peers[i], context);
@@ -153,6 +192,13 @@ const Pair = struct {
 
     fn deinit(self: *Pair) !void {
         var failed = false;
+        for (&self.outboxes, self.outbox_ready, 0..) |*outbox, ready, peer| {
+            if (!ready) continue;
+            outbox.shutdown(&self.sessions[peer]) catch {
+                failed = true;
+            };
+            outbox.deinit();
+        }
         for (&self.sessions, self.session_ready) |*session, ready| {
             if (ready) session.close(session.id, .requested) catch {
                 failed = true;
@@ -199,65 +245,91 @@ const Pair = struct {
     fn drain(self: *Pair) !void {
         for (&self.contexts, 0..) |*context, peer| {
             if (context.failed.load(.acquire)) return error.CallbackFailed;
-            while (try context.events.receive(context.io)) |event| switch (event) {
-                .channel => |dc| {
-                    // Take ownership before validation, so failed probes clean up.
-                    var slot: ?usize = null;
-                    for (self.channels[peer], 0..) |known, i| {
-                        if (known < 0) {
-                            slot = i;
-                            break;
+            var processed: usize = 0;
+            while (processed < 16) : (processed += 1) {
+                const event = (try context.events.receive(context.io)) orelse break;
+                switch (event) {
+                    .channel => |dc| {
+                        // Take ownership before validation, so failed probes clean up.
+                        var slot: ?usize = null;
+                        for (self.channels[peer], 0..) |known, i| {
+                            if (known < 0) {
+                                slot = i;
+                                break;
+                            }
                         }
-                    }
-                    if (slot == null) {
-                        try check(c.rtcDeleteDataChannel(dc));
-                        return error.ExtraChannel;
-                    }
-                    self.channels[peer][slot.?] = dc;
-                    var label: [64]u8 = undefined;
-                    const length = c.rtcGetDataChannelLabel(dc, &label, label.len);
-                    try check(length);
-                    try expect(length > 0 and length <= label.len and label[@intCast(length - 1)] == 0);
-                    const name = label[0..@intCast(length - 1)];
-                    var index: ?usize = null;
-                    for (labels, 0..) |expected, i| {
-                        if (std.mem.eql(u8, name, expected)) index = i;
-                    }
-                    try expect(peer == 1 and index != null);
-                    if (index.? != slot.?) {
-                        try expect(self.channels[peer][index.?] < 0);
-                        self.channels[peer][index.?] = dc;
-                        self.channels[peer][slot.?] = -1;
-                    }
-                    var reliability: c.rtcReliability = undefined;
-                    try check(c.rtcGetDataChannelReliability(dc, &reliability));
-                    try expect(reliability.unordered == (index.? == 1));
-                    try expect(reliability.unreliable == (index.? == 1));
-                    try expect(reliability.maxRetransmits == 0 and reliability.maxPacketLifeTime == 0);
-                    try check(c.rtcSetMessageCallback(dc, message));
-                    try check(c.rtcSetClosedCallback(dc, closed));
-                },
-                .closed => |stamp| try self.sessions[peer].close(stamp, .transport_closed),
-                .message => |event_message| {
-                    var channel: ?usize = null;
-                    for (self.channels[peer], 0..) |dc, index| if (dc == event_message.id) {
-                        channel = index;
-                    };
-                    try expect(channel != null);
-                    const complete = try self.sessions[peer].accept(event_message.session, @fromBackingInt(@intCast(channel.?)), event_message.bytes[0..event_message.length], self.now());
-                    self.framed_messages += 1;
-                    const bytes = complete orelse continue;
-                    try expect(bytes.len == 16 and bytes[2] == channel.?);
-                    const sequence = bytes[3];
-                    try expect(sequence < 32);
-                    try expect(std.mem.eql(u8, bytes, &payload(self.cycle, @intCast(1 - peer), @intCast(channel.?), sequence)));
-                    const bit = @as(u32, 1) << @as(u5, @intCast(sequence));
-                    try expect(self.seen[peer][channel.?] & bit == 0);
-                    if (channel.? == 0) try expect(sequence == self.received[peer][channel.?]);
-                    self.seen[peer][channel.?] |= bit;
-                    self.received[peer][channel.?] += 1;
-                },
-            };
+                        if (slot == null) {
+                            try check(c.rtcDeleteDataChannel(dc));
+                            return error.ExtraChannel;
+                        }
+                        self.channels[peer][slot.?] = dc;
+                        var label: [64]u8 = undefined;
+                        const length = c.rtcGetDataChannelLabel(dc, &label, label.len);
+                        try check(length);
+                        try expect(length > 0 and length <= label.len and label[@intCast(length - 1)] == 0);
+                        const name = label[0..@intCast(length - 1)];
+                        var index: ?usize = null;
+                        for (labels, 0..) |expected, i| {
+                            if (std.mem.eql(u8, name, expected)) index = i;
+                        }
+                        try expect(peer == 1 and index != null);
+                        if (index.? != slot.?) {
+                            try expect(self.channels[peer][index.?] < 0);
+                            self.channels[peer][index.?] = dc;
+                            self.channels[peer][slot.?] = -1;
+                        }
+                        var reliability: c.rtcReliability = undefined;
+                        try check(c.rtcGetDataChannelReliability(dc, &reliability));
+                        try expect(reliability.unordered == (index.? == 1));
+                        try expect(reliability.unreliable == (index.? == 1));
+                        try expect(reliability.maxRetransmits == 0 and reliability.maxPacketLifeTime == 0);
+                        try check(c.rtcSetMessageCallback(dc, message));
+                        try check(c.rtcSetClosedCallback(dc, closed));
+                    },
+                    .closed => |stamp| try self.sessions[peer].close(stamp, .transport_closed),
+                    .message => |event_message| {
+                        var channel: ?usize = null;
+                        for (self.channels[peer], 0..) |dc, index| if (dc == event_message.id) {
+                            channel = index;
+                        };
+                        try expect(channel != null);
+                        const complete = try self.sessions[peer].accept(event_message.session, @fromBackingInt(@intCast(channel.?)), event_message.bytes[0..event_message.length], self.now());
+                        self.framed_messages += 1;
+                        const bytes = complete orelse continue;
+                        try expect(bytes.len == 16 and bytes[2] == channel.?);
+                        const sequence = bytes[3];
+                        try expect(sequence < 32);
+                        try expect(std.mem.eql(u8, bytes, &payload(self.cycle, @intCast(1 - peer), @intCast(channel.?), sequence)));
+                        const bit = @as(u32, 1) << @as(u5, @intCast(sequence));
+                        try expect(self.seen[peer][channel.?] & bit == 0);
+                        if (channel.? == 0) try expect(sequence == self.received[peer][channel.?]);
+                        self.seen[peer][channel.?] |= bit;
+                        self.received[peer][channel.?] += 1;
+                    },
+                }
+            }
+        }
+    }
+
+    fn pumpSends(self: *Pair) !void {
+        for (&self.outboxes, 0..) |*outbox, peer| {
+            var scratch: [17]u8 = undefined;
+            // Force yielding between fragments. The copied payload must survive
+            // across calls, and the other channel still gets scheduled.
+            _ = try outbox.pump(&self.sessions[peer], self.sinks[peer].sink(), &scratch, .{ .steps = 1, .wire_bytes = 17 });
+            @memset(&scratch, 0);
+            while (outbox.takeCompletion()) |completion| {
+                const sequence = completion.ticket.sequence;
+                try expect(sequence >= 1 and sequence <= 64);
+                try expect(std.meta.eql(completion.ticket.session, self.contexts[peer].session_id));
+                try expect(completion.outcome == .drained and completion.payload_bytes == 16);
+                const fragments: u16 = if (completion.channel == .reliable) 3 else 1;
+                try expect(completion.frames == fragments and completion.wire_bytes == 16 + fragments);
+                const bit = @as(u64, 1) << @as(u6, @intCast(sequence - 1));
+                try expect(self.receipt_seen[peer] & bit == 0);
+                self.receipt_seen[peer] |= bit;
+                self.receipt_count[peer] += 1;
+            }
         }
     }
 
@@ -323,7 +395,7 @@ const Delete = struct {
     }
 };
 
-fn runCycle(io: std.Io, cycle: u8) !void {
+fn runCycle(io: std.Io, allocator: std.mem.Allocator, cycle: u8) !void {
     var pair: Pair = .{ .contexts = .{ .{ .io = io }, .{ .io = io } }, .cycle = cycle, .clock_start = std.Io.Clock.awake.now(io) };
     defer pair.deinit() catch @panic("Native cleanup failed");
     try pair.init();
@@ -336,26 +408,21 @@ fn runCycle(io: std.Io, cycle: u8) !void {
         try pause(io, start);
     }
     for (0..32) |sequence| {
-        for (pair.channels, 0..) |channels, sender| for (channels, 0..) |dc, channel| {
+        for (0..2) |sender| for (0..2) |channel| {
             const bytes = payload(cycle, @intCast(sender), @intCast(channel), @intCast(sequence));
-            const buffered = c.rtcGetBufferedAmount(dc);
-            try check(buffered);
-            try expect(buffered <= 1024);
-            var segmenter = try framing.Sender.init(@fromBackingInt(@intCast(channel)), &bytes, .{ .frame_bytes = if (channel == 0) 7 else 17, .message_bytes = 64 });
-            var scratch: [17]u8 = undefined;
-            while (try segmenter.write(&scratch)) |frame| {
-                try check(c.rtcSendMessage(dc, frame.ptr, @intCast(frame.len)));
-                try expect(segmenter.commit());
-                @memset(&scratch, 0);
-            }
+            _ = try pair.outboxes[sender].enqueueCopy(allocator, &pair.sessions[sender], @fromBackingInt(@intCast(channel)), &bytes);
         };
         const sent = std.Io.Clock.awake.now(io);
         while (true) {
+            try pair.pumpSends();
             try pair.drain();
             var complete = true;
             for (pair.received) |counts| for (counts) |count| {
                 if (count != sequence + 1) complete = false;
             };
+            for (pair.receipt_count) |count| {
+                if (count != 2 * (sequence + 1)) complete = false;
+            }
             if (complete) break;
             try pause(io, sent);
         }
@@ -458,14 +525,14 @@ pub fn main(init: std.process.Init) !u8 {
         std.debug.print("callback probe failed: {s}\n", .{@errorName(err)});
         return 1;
     };
-    for (0..3) |cycle| runCycle(init.io, @intCast(cycle)) catch |err| {
+    for (0..3) |cycle| runCycle(init.io, init.gpa, @intCast(cycle)) catch |err| {
         std.debug.print("transport cycle {d} failed: {s}\n", .{ cycle, @errorName(err) });
         return 1;
     };
     try cancelGathering(init.io);
     var buffer: [256]u8 = undefined;
     var output = std.Io.File.Writer.init(.stdout(), init.io, &buffer);
-    try output.interface.writeAll("{\"cycles\":3,\"binary_messages\":384,\"framed_messages\":771,\"cancelled_assemblies\":3,\"native_disconnects\":3,\"deletion_barriers\":3,\"cancelled_offers\":16,\"callback_boundary_checks\":6}\n");
+    try output.interface.writeAll("{\"cycles\":3,\"binary_messages\":384,\"drained_receipts\":384,\"framed_messages\":771,\"cancelled_assemblies\":3,\"native_disconnects\":3,\"deletion_barriers\":3,\"cancelled_offers\":16,\"callback_boundary_checks\":6}\n");
     try output.interface.flush();
     return 0;
 }
