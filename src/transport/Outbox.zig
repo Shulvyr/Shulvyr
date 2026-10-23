@@ -184,7 +184,7 @@ pub fn Outbox(comptime capacity: usize) type {
             return if (cause == error.Closed) error.ProviderClosed else error.ProviderFailed;
         }
 
-        fn preflightScratch(self: *Self, session: *const Session, scratch: []u8) !void {
+        pub fn checkScratch(self: *Self, session: *const Session, scratch: []u8) !void {
             if (buffer.overlaps(scratch, std.mem.asBytes(self)) or
                 buffer.overlaps(scratch, std.mem.asBytes(session))) return error.AliasedScratch;
             for (session.receivers) |receiver| {
@@ -220,7 +220,7 @@ pub fn Outbox(comptime capacity: usize) type {
                 stats.budget_limited = self.outstanding != self.completed.count;
                 return stats;
             }
-            try self.preflightScratch(session, scratch);
+            try self.checkScratch(session, scratch);
             var skip: [2]bool = .{ false, false };
             var observed: [2]bool = .{ false, false };
             while (stats.steps < budget.steps) {
@@ -291,6 +291,28 @@ pub fn Outbox(comptime capacity: usize) type {
             }
             if (stats.steps == budget.steps and self.outstanding != self.completed.count) stats.budget_limited = true;
             return stats;
+        }
+
+        /// Observes existing receipts without sending. Two provider queries at
+        /// most, followed by at most capacity scalar completions. Providers may
+        /// report final buffering after channel closure, before handle deletion.
+        pub fn observeDrains(self: *Self, session: *Session, sink: FrameSink) !usize {
+            try self.identity(session);
+            if (!std.meta.eql(sink.session_id, self.session_id)) return error.StaleProvider;
+            if (self.closed or session.state == .closed) return error.Closed;
+            var count: usize = 0;
+            for (0..2) |index| {
+                if (self.receipts[index].count == 0) continue;
+                const amount = sink.bufferedAmount(@fromBackingInt(@intCast(index))) catch |err| return self.failed(session, err);
+                if (amount > self.queued[index]) continue;
+                self.drained[index] = self.queued[index] - amount;
+                while (self.receipts[index].peek()) |receipt| {
+                    if (receipt.watermark > self.drained[index]) break;
+                    self.completed.push(self.receipts[index].pop().?.completion) catch unreachable;
+                    count += 1;
+                }
+            }
+            return count;
         }
     };
 }

@@ -8,7 +8,7 @@ pub const Config = struct {
     frame_bytes: usize = framing.max_frame_bytes,
     payload_bytes: usize = 4 * 1024 * 1024,
 };
-pub const StopReason = enum { requested, transport_closed, invalid_frame, queue_full, byte_budget, out_of_memory, delivery_failure };
+pub const StopReason = enum { requested, transport_closed, transport_failed, invalid_frame, queue_full, byte_budget, out_of_memory, delivery_failure };
 pub const Status = struct { reason: ?StopReason, outstanding: usize, payload_bytes: usize };
 
 /// One provider lifetime, concurrent producers and one owner. Initialize at its
@@ -176,6 +176,7 @@ pub fn Inbox(comptime capacity: usize) type {
             try session.close(self.session, switch (reason) {
                 .requested => .requested,
                 .transport_closed => .transport_closed,
+                .transport_failed => .transport_failure,
                 .invalid_frame => .framing_error,
                 .queue_full, .byte_budget => .inbound_overflow,
                 .out_of_memory, .delivery_failure => .inbound_failure,

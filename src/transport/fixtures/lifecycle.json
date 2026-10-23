@@ -1,0 +1,186 @@
+{
+    "oracle": {
+        "repository": "https://github.com/axolotl-pm/nethernet",
+        "branch": "master",
+        "revision": "6ecacdaed3b0605a6a523235e5536f9c09ea56fd",
+        "license": "LGPL-3.0-or-later"
+    },
+    "packet_limit": 64,
+    "flush_timeout_ns": 2000000000,
+    "cases": [
+        {
+            "name": "drained",
+            "payload_hex": "616263646566",
+            "phases": [
+                {
+                    "time_ns": 0,
+                    "buffered": 8,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": false,
+                    "reason": "SERVER_DISCONNECT"
+                },
+                {
+                    "time_ns": 1000000000,
+                    "buffered": 0,
+                    "transport": "CONNECTED",
+                    "acknowledged": [
+                        1
+                    ],
+                    "connected": false,
+                    "disconnected": true,
+                    "reason": "SERVER_DISCONNECT"
+                }
+            ]
+        },
+        {
+            "name": "deadline",
+            "payload_hex": "616263646566",
+            "phases": [
+                {
+                    "time_ns": 5000000000,
+                    "buffered": 8,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": false,
+                    "reason": "SERVER_DISCONNECT"
+                },
+                {
+                    "time_ns": 6999999999,
+                    "buffered": 8,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": false,
+                    "reason": "SERVER_DISCONNECT"
+                },
+                {
+                    "time_ns": 7000000000,
+                    "buffered": 8,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": true,
+                    "reason": "SERVER_DISCONNECT"
+                }
+            ]
+        },
+        {
+            "name": "empty_control",
+            "payload_hex": "",
+            "phases": [
+                {
+                    "time_ns": 0,
+                    "buffered": 100,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": false,
+                    "reason": "SERVER_DISCONNECT"
+                },
+                {
+                    "time_ns": 1000000000,
+                    "buffered": 0,
+                    "transport": "CONNECTED",
+                    "acknowledged": [
+                        1
+                    ],
+                    "connected": false,
+                    "disconnected": true,
+                    "reason": "SERVER_DISCONNECT"
+                }
+            ]
+        },
+        {
+            "name": "empty_deadline",
+            "payload_hex": "",
+            "phases": [
+                {
+                    "time_ns": 0,
+                    "buffered": 100,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": false,
+                    "reason": "SERVER_DISCONNECT"
+                },
+                {
+                    "time_ns": 2000000000,
+                    "buffered": 0,
+                    "transport": "CONNECTED",
+                    "acknowledged": [
+                        1
+                    ],
+                    "connected": false,
+                    "disconnected": true,
+                    "reason": "SERVER_DISCONNECT"
+                }
+            ]
+        },
+        {
+            "name": "empty",
+            "payload_hex": null,
+            "phases": [
+                {
+                    "time_ns": 0,
+                    "buffered": 0,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": true,
+                    "reason": "SERVER_DISCONNECT"
+                }
+            ]
+        },
+        {
+            "name": "remote_closed",
+            "payload_hex": "616263646566",
+            "phases": [
+                {
+                    "time_ns": 0,
+                    "buffered": 8,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": false,
+                    "reason": "SERVER_DISCONNECT"
+                },
+                {
+                    "time_ns": 1000000000,
+                    "buffered": 8,
+                    "transport": "CLOSED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": true,
+                    "reason": "SERVER_DISCONNECT"
+                }
+            ]
+        },
+        {
+            "name": "transport_failed",
+            "payload_hex": "616263646566",
+            "phases": [
+                {
+                    "time_ns": 0,
+                    "buffered": 8,
+                    "transport": "CONNECTED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": false,
+                    "reason": "SERVER_DISCONNECT"
+                },
+                {
+                    "time_ns": 1000000000,
+                    "buffered": 8,
+                    "transport": "FAILED",
+                    "acknowledged": [],
+                    "connected": false,
+                    "disconnected": true,
+                    "reason": "CONNECTION_FAILED"
+                }
+            ]
+        }
+    ]
+}

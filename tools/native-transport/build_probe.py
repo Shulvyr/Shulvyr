@@ -188,7 +188,8 @@ def main() -> None:
                     "native_disconnects": 3,
                     "cancelled_offers": 16, "callback_boundary_checks": 7,
                     "incoming_channel_overflows": 1, "zig_allocation_leaks": 0,
-                    "finalized_peers": 40, "owner_ticks_while_closing": 9}
+                    "finalized_peers": 42, "owner_ticks_while_closing": 9,
+                    "graceful_closes": 1}
         summaries = [json.loads(line) for line in probe_output.splitlines() if line.startswith('{"cycles":')]
         if summaries != [expected]:
             raise RuntimeError("Zig native probe did not report its expected checks")

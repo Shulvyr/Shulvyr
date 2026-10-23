@@ -12,7 +12,7 @@ pub const Id = struct {
 };
 
 pub const State = enum { negotiating, open, closed };
-pub const CloseReason = enum { requested, transport_closed, outbound_failure, inbound_overflow, inbound_failure, negotiation_timeout, framing_error, assembly_timeout, invalid_channel };
+pub const CloseReason = enum { requested, transport_closed, transport_failure, outbound_failure, inbound_overflow, inbound_failure, negotiation_timeout, framing_error, assembly_timeout, invalid_channel };
 pub const ChannelOptions = struct {
     ordered: bool,
     max_retransmits: ?u32 = null,

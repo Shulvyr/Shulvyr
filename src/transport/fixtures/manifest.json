@@ -6,7 +6,7 @@
         "revision": "6ecacdaed3b0605a6a523235e5536f9c09ea56fd",
         "license": "LGPL-3.0-or-later"
     },
-    "generator_sha256": "0e664b0d5dba47128e58971d11cd3150c4270388b9ed33747ceaf536af3ca056",
+    "generator_sha256": "1889e51609563690a556f33b85b4d328840e8e69c742320f56edde2a766feba8",
     "files": {
         "framing.json": {
             "bytes": 41865,
@@ -15,12 +15,17 @@
         "receipts.json": {
             "bytes": 8095,
             "sha256": "04486f0cdf18e9690cf012d3013ba57bc955256ecb78becb43d39fb52787b782"
+        },
+        "lifecycle.json": {
+            "bytes": 5974,
+            "sha256": "81d497b8c8ad22e99baa1ef07983eb919050f8bfab1d3c0dd98d9c3a619a127f"
         }
     },
     "cases": {
         "send": 10,
         "receive": 11,
         "boundaries": 5,
-        "receipts": 6
+        "receipts": 6,
+        "lifecycle": 7
     }
 }

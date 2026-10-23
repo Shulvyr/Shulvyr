@@ -132,9 +132,53 @@ foreach ($receiptCases as [$name, $packets, $control, $snapshots]) {
 }
 $receiptEncoded = json_encode(['oracle' => $data['oracle'], 'cases' => $receipts], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
 file_put_contents(__DIR__ . '/../src/transport/fixtures/receipts.json', $receiptEncoded);
+$lifecycle = [];
+$lifecycleCases = [
+    ['drained', 'abcdef', [[0, 8, 'CONNECTED'], [1000000000, 0, 'CONNECTED']]],
+    ['deadline', 'abcdef', [[5000000000, 8, 'CONNECTED'], [6999999999, 8, 'CONNECTED'], [7000000000, 8, 'CONNECTED']]],
+    ['empty_control', '', [[0, 100, 'CONNECTED'], [1000000000, 0, 'CONNECTED']]],
+    ['empty_deadline', '', [[0, 100, 'CONNECTED'], [2000000000, 0, 'CONNECTED']]],
+    ['empty', null, [[0, 0, 'CONNECTED']]],
+    ['remote_closed', 'abcdef', [[0, 8, 'CONNECTED'], [1000000000, 8, 'CLOSED']]],
+    ['transport_failed', 'abcdef', [[0, 8, 'CONNECTED'], [1000000000, 8, 'FAILED']]],
+];
+foreach ($lifecycleCases as [$name, $payload, $snapshots]) {
+    $transport = new \pocketmine\nethernet\FakePeerTransport();
+    $transport->state = \pocketmine\nethernet\transport\TransportState::CONNECTED;
+    $reliable = new \pocketmine\nethernet\FakeMessageChannel(\pocketmine\nethernet\protocol\Reliability::RELIABLE);
+    $unreliable = new \pocketmine\nethernet\FakeMessageChannel(\pocketmine\nethernet\protocol\Reliability::UNRELIABLE);
+    $session = new \pocketmine\nethernet\session\Session(7, $transport,
+        new \pocketmine\nethernet\transport\ChannelPair($reliable, $unreliable),
+        new \pocketmine\nethernet\utils\InternetAddress('192.0.2.10', 5000, 4), null,
+        new Segmenter(4), new \pocketmine\nethernet\transport\ConnectionBudgetConfiguration());
+    if ($payload !== null) {
+        $session->send($payload, \pocketmine\nethernet\protocol\Reliability::RELIABLE, 1);
+    }
+    $session->initiateDisconnect(\pocketmine\nethernet\protocol\DisconnectReason::SERVER_DISCONNECT);
+    $phases = [];
+    foreach ($snapshots as $index => [$time, $buffered, $state]) {
+        $reliable->buffered = $buffered;
+        $transport->state = constant(\pocketmine\nethernet\transport\TransportState::class . '::' . $state);
+        if ($index > 0) {
+            $session->initiateDisconnect(\pocketmine\nethernet\protocol\DisconnectReason::SERVER_DISCONNECT);
+        }
+        $acknowledged = $session->takeAcknowledgedReceipts();
+        $session->update($time / 1000000000);
+        $phases[] = ['time_ns' => $time, 'buffered' => $buffered, 'transport' => $state,
+            'acknowledged' => $acknowledged, 'connected' => $session->isConnected(),
+            'disconnected' => $session->isFullyDisconnected(), 'reason' => $session->getDisconnectReason()?->name];
+    }
+    $lifecycle[] = ['name' => $name, 'payload_hex' => $payload !== null ? bin2hex($payload) : null, 'phases' => $phases];
+}
+$lifecycleEncoded = json_encode(['oracle' => $data['oracle'],
+    'packet_limit' => \pocketmine\nethernet\server\SessionManager::PACKETS_PER_TICK_LIMIT,
+    'flush_timeout_ns' => (int) (\pocketmine\nethernet\session\Session::DISCONNECT_FLUSH_TIMEOUT * 1000000000),
+    'cases' => $lifecycle], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+file_put_contents(__DIR__ . '/../src/transport/fixtures/lifecycle.json', $lifecycleEncoded);
 $manifest = ['schema' => 1, 'oracle' => $data['oracle'], 'generator_sha256' => hash_file('sha256', __FILE__),
     'files' => ['framing.json' => ['bytes' => strlen($encoded), 'sha256' => hash('sha256', $encoded)],
-        'receipts.json' => ['bytes' => strlen($receiptEncoded), 'sha256' => hash('sha256', $receiptEncoded)]],
-    'cases' => ['send' => count($send), 'receive' => count($receive), 'boundaries' => count($boundaries), 'receipts' => count($receipts)]];
+        'receipts.json' => ['bytes' => strlen($receiptEncoded), 'sha256' => hash('sha256', $receiptEncoded)],
+        'lifecycle.json' => ['bytes' => strlen($lifecycleEncoded), 'sha256' => hash('sha256', $lifecycleEncoded)]],
+    'cases' => ['send' => count($send), 'receive' => count($receive), 'boundaries' => count($boundaries), 'receipts' => count($receipts), 'lifecycle' => count($lifecycle)]];
 file_put_contents(__DIR__ . '/../src/transport/fixtures/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
-echo 'Generated ' . count($send) . ' send cases, ' . count($receive) . ' receive sequences, ' . count($boundaries) . ' boundary cases and ' . count($receipts) . " receipt sequences\n";
+echo 'Generated ' . count($send) . ' send cases, ' . count($receive) . ' receive sequences, ' . count($boundaries) . ' boundary cases, ' . count($receipts) . ' receipt sequences and ' . count($lifecycle) . " lifecycle sequences\n";

@@ -48,6 +48,8 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   callback snapshot capacity before allocation and keeps it through owner leases.
   `transport/Reaper.zig` runs provider finalizers off the owner and retains
   contexts until successful quiescence and explicit owner collection.
+  `transport/Connection.zig` composes these parts into one connection lifecycle,
+  bounded event pulls and graceful disconnect with scoped finalizer routing.
   See [transport contracts](transport.md)
   for limits, ownership, error policy and oracle evidence.
 - `foundation/binary.zig` borrows input and output buffers. Failed reads restore

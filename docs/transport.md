@@ -171,6 +171,8 @@ ticket before publishing a native connection that will need cleanup. Capacity
 covers reservations, queued/running finalizers, uncollected completions and
 retained contexts. One reservation per session prevents duplicate submission.
 Exhausted ticket generations retire their slots.
+The reaper's owner ID identifies its lifetime and must not be reused while old
+tickets can exist, matching the underlying pool's ownership rule.
 Credits end when ownership returns. Connection pools must account separately
 for returned context memory and native provider allocations.
 
@@ -202,6 +204,62 @@ The job queue closes once every credit has returned. `join` refuses outstanding
 work, so it cannot wait for a result the caller still needs to collect.
 `tryJoin` supports owner polling. Deinitialize only after worker exit is joined.
 
+## Owner connection controller
+
+`Connection(send_capacity, receive_capacity, reaper_capacity)` owns one logical
+session, inbox and outbox at a fixed address. It borrows receive storage, a
+thread-safe allocator and a shared reaper. Initialization reserves cleanup
+capacity before any provider is created. Attach a scoped `Provider` containing
+the sink and finalizer before publishing native callbacks. Attachment transfers
+ownership only on success. An unattached connection can cancel its reservation
+without a native task. This controller does not allocate a connection registry
+or implement a listener, signaling, authentication or a persistent server loop.
+
+The owner validates channel opens and calls `beginTick` once per increasing
+tick with monotonic nanoseconds, sender scratch and explicit work budgets.
+Stale identities, ticks, clocks and aliased scratch reject before work. Existing
+drain receipts are observed before processing native termination. These control
+observations make at most six provider queries and `2 * send_capacity` scalar
+completions in addition to the sender budget. They run even with zero send steps.
+Provider calls must remain synchronous and must not wait for owner work.
+
+Pull `nextEvent` only when the application can accept it. Events prioritize open,
+send outcomes, logical close, cleanup failure and final retirement before input.
+An open that has not been published is suppressed on close, along with its
+corresponding close notification. Message payloads borrow receiver storage until
+the next connection mutation. Each tick permits at most 64 complete messages
+and the supplied receive frame/byte budgets. A frame that exceeds the remaining
+byte budget retains its inbox lease and credits for a later tick. No complete
+application message is pulled while draining or closing.
+
+`disconnect` refuses new application sends and flushes already admitted work.
+Its two-second grace period starts on the first owner update, and repeated
+requests do not extend it. Final drain receipts precede the close event, including
+at the deadline. A flush completes when both provider buffers and pending send
+queues are empty. Normal remote closure during grace preserves the requested
+disconnect reason. An explicit failed transport remains a failure. Expiry
+reports `flush_expired`, cancels unresolved sends and starts native cleanup.
+Local queue drain still does not establish remote delivery.
+
+`forceClose` stops admission and logical state, releases any held frame and
+submits the provider finalizer to the reserved reaper slot. Native callbacks
+retain only inbox access. The shared reaper owner routes collected completions
+to `finalized` using the scoped session and ticket. A failure emits
+`cleanup_failed` and retains ownership until an explicit retry succeeds. Drain
+closed inbox frames with a bounded discard budget. Only successful native
+quiescence, zero outstanding ingress and consumed notifications permit a
+`finalized` event to return the provider task. Deinitialize after that event.
+The provider context, connection and receive storage must survive this entire
+sequence. A stuck native finalizer cannot be timed out by freeing its context.
+
+The selected behavior follows Axolotl NetherNet's `Session` and `SessionManager`
+at the revision in the fixture manifest. Defaults retain its message and receive
+byte limits. Shulvyr adds explicit queue, allocation and owner work limits.
+Ingress limits and partial-assembly deadlines remain enforced during graceful
+disconnect. These resource policies are stricter than the upstream grace path,
+which skips its normal queue checks. Registry lifetime and application admission
+across multiple connections remain the next integration boundary.
+
 ## Verification
 
 The [fixture manifest](../src/transport/fixtures/manifest.json) binds the generator,
@@ -221,6 +279,11 @@ retry without commit, aliasing, malformed frames, exact byte/time limits, stale
 generations, independent channels and closure. Receipt fixtures call the real
 upstream `Session` with its own `FakePeerTransport` and `FakeMessageChannel`
 classes, feeding controlled buffered amounts through the public receipt API.
+Seven lifecycle fixtures also call public send, disconnect, update and receipt
+methods on that real session. They cover drain, grace expiry, empty-message
+control buffering, repeated disconnect and closed/failed transports. The
+generator reads the public packet quota constant, without claiming to exercise
+the PHP manager's scheduling or callbacks.
 No PHP test classes or runtime are included in the Zig package. Outbox tests
 also cover allocation failures, queue wrap, completion pressure, shared native
 admission, bounded pump work, partial-send failure and stale providers. The
@@ -229,7 +292,9 @@ accounting, repeated acceptance, stale identities, negotiation retry, sticky
 failure, allocation faults and stop during an in-flight allocation. The
 Reaper tests cover actual worker execution, reservation/result pressure, failed
 finalizer retry, shutdown admission, stale tickets, generation exhaustion and
-allocation failures. The
+allocation failures. Connection tests additionally cover event ordering, graceful deadlines, the
+64-message quota, held ingress credits, scope/clock rejection, provider cleanup
+retry and allocation faults. The
 [native probe](native-transport.md) routes copied frames through the same core
 and cancels a partial assembly before closing native connections. Native queue
 memory, real client signaling and authenticated gameplay remain separate gates.
