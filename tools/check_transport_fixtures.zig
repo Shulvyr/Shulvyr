@@ -1,7 +1,7 @@
 const std = @import("std");
 const Value = std.json.Value;
 const Allocator = std.mem.Allocator;
-const Kind = enum { signaling, sdp };
+const Kind = enum { signaling, sdp, identity };
 
 pub fn main(init: std.process.Init) !u8 {
     var output_buffer: [512]u8 = undefined;
@@ -24,6 +24,8 @@ pub fn run(arena: Allocator, io: std.Io, output: *std.Io.Writer) !void {
     try output.writeAll("Verified 30 independent signaling oracle cases\n");
     try checkSdp(arena, try load(arena, io, .sdp));
     try output.writeAll("Verified 42 SDP descriptions, 18 edits and 17 fingerprint oracle cases\n");
+    try checkIdentity(arena, try load(arena, io, .identity));
+    try output.writeAll("Verified 12 identity keys, 26 assertions and 15 timestamp oracle cases\n");
 }
 
 pub fn require(condition: bool) !void {
@@ -88,6 +90,7 @@ fn load(arena: Allocator, io: std.Io, kind: Kind) !Value {
     const paths: [3][]const u8 = switch (kind) {
         .signaling => .{ "src/transport/fixtures/signaling-manifest.json", "src/transport/fixtures/signaling.json", "tools/generate_signaling_fixtures.php" },
         .sdp => .{ "src/transport/fixtures/sdp-manifest.json", "src/transport/fixtures/sdp.json", "tools/generate_sdp_fixtures.php" },
+        .identity => .{ "src/transport/fixtures/identity-manifest.json", "src/transport/fixtures/identity.json", "tools/generate_identity_fixtures.php" },
     };
     const manifest = try json(arena, try read(arena, io, paths[0]));
     try require(try number(try field(manifest, "schema")) == 1);
@@ -100,6 +103,12 @@ fn load(arena: Allocator, io: std.Io, kind: Kind) !Value {
             try require(try number(try field(counts, "descriptions")) == 42);
             try require(try number(try field(counts, "edits")) == 18);
             try require(try number(try field(counts, "fingerprints")) == 17);
+        },
+        .identity => {
+            try require(counts == .object and counts.object.count() == 3);
+            try require(try number(try field(counts, "keys")) == 12);
+            try require(try number(try field(counts, "assertions")) == 26);
+            try require(try number(try field(counts, "timestamps")) == 15);
         },
     }
     // Oracle generators are read as provenance bytes, never executed here.
@@ -162,6 +171,43 @@ fn checkSignaling(arena: Allocator, fixture: Value) !void {
 fn fingerprint(arena: Allocator, value: Value) !void {
     try require(std.ascii.eqlIgnoreCase(try text(try field(value, "algorithm")), "sha-256"));
     for ([_][]const u8{ "digest_hex", "attribute_hex", "canonical_hex" }) |name| _ = try unhex(arena, try field(value, name));
+}
+
+fn checkIdentity(arena: Allocator, fixture: Value) !void {
+    const keys = try items(try field(fixture, "keys"));
+    const assertions = try items(try field(fixture, "assertions"));
+    const timestamps = try items(try field(fixture, "timestamps"));
+    try unique(keys, 12);
+    try unique(assertions, 26);
+    try unique(timestamps, 15);
+    for (keys) |case| {
+        _ = try field(case, "claim");
+        if (has(case, "error")) {
+            try require(try flag(case, "error"));
+        } else {
+            const der = try unhex(arena, try field(case, "der_hex"));
+            try require((der.len == 72 or der.len == 120) and (try unhex(arena, try field(case, "digest_hex"))).len == 32);
+        }
+    }
+    for (assertions) |case| {
+        _ = try text(try field(case, "attribute"));
+        _ = try unhex(arena, try field(case, "payload_hex"));
+        if (has(case, "parse_error")) {
+            try require(try flag(case, "parse_error") and case.object.count() == 4);
+            continue;
+        }
+        try require((try text(try field(case, "domain"))).len != 0);
+        try require(std.mem.count(u8, try text(try field(case, "token")), ".") == 2);
+        try require((try unhex(arena, try field(case, "key_digest_hex"))).len == 32);
+        _ = try flag(case, "token_signed");
+        try require(has(case, "proof_error") != has(case, "proof_valid"));
+        if (has(case, "proof_error")) try require(try flag(case, "proof_error")) else _ = try flag(case, "proof_valid");
+    }
+    for (timestamps) |case| {
+        try require((try text(try field(case, "attribute"))).len != 0 and try field(case, "now") == .integer);
+        try require(try number(try field(case, "leeway")) <= std.math.maxInt(u32));
+        _ = try flag(case, "valid");
+    }
 }
 
 fn checkSdp(arena: Allocator, fixture: Value) !void {

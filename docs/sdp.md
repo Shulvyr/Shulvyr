@@ -40,6 +40,10 @@ standalone syntax parser. SDP parsing has already split line separators before
 attribute extraction. `sha256Bytes` separately requires an exact 32-byte digest.
 Neither operation proves that a remote certificate matches that digest.
 
+The target-protocol [identity primitives](identity.md) use a separate
+`FingerprintPayload` writer covering every fingerprint line. The selected
+single-fingerprint helper remains a source-behavior contract.
+
 `write` emits CRLF and a final CRLF into caller storage. A single `Edit` removes
 identity, removes candidates and end-of-candidates, rewrites connection addresses,
 replaces candidates, limits candidates, or inserts/replaces session identity.

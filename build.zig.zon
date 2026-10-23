@@ -24,6 +24,7 @@
         "tools/generate_framing_fixtures.php",
         "tools/generate_signaling_fixtures.php",
         "tools/generate_sdp_fixtures.php",
+        "tools/generate_identity_fixtures.php",
         "tools/check_transport_fixtures.zig",
         "tools/check_fixtures.zig",
         "tools/native-transport/build_probe.py",

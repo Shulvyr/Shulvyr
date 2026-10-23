@@ -46,7 +46,7 @@ Use Zig for new first-party maintenance tools. `zig build check-fixtures` checks
 all committed oracle fixtures without Python or PHP. It verifies provenance,
 generator hashes, file sets, wire hashes and the recorded semantic checks.
 It reads oracle generator source as data and never executes it. The focused
-`check-transport-fixtures` step checks only signaling and SDP.
+`check-transport-fixtures` step checks signaling, SDP and identity.
 
 Registry generation and its tests, compiler bootstrap and native-probe build
 tooling still use Python. Their migration is incomplete. Optional oracle
@@ -66,6 +66,10 @@ contracts and tests. See its [remaining production gates](native-transport.md).
   canonical envelopes into caller storage. See [signaling text](signaling.md).
 - `transport/sdp/SessionDescription.zig` and `Fingerprint.zig` provide borrowed
   SDP views and preflighted transformations. See the [SDP boundary](sdp.md).
+- `transport/identity/Assertion.zig` and `PublicKey.zig` provide bounded owned
+  assertion parsing, P-384 key handling and separate signature/time checks.
+  `transport/sdp/FingerprintPayload.zig` writes all fingerprint attributes for
+  target-protocol proofs. See [identity primitives and trust](identity.md).
 - `transport/framing.zig` splits and reassembles bounded NetherNet messages.
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound

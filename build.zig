@@ -73,7 +73,7 @@ pub fn build(b: *std.Build) void {
     const check_fixtures = b.addRunArtifact(fixture_checker);
     check_fixtures.setCwd(b.path("."));
     check_fixtures.has_side_effects = true;
-    const fixture_step = b.step("check-transport-fixtures", "Verify signaling and SDP fixtures using Zig");
+    const fixture_step = b.step("check-transport-fixtures", "Verify signaling, SDP and identity fixtures using Zig");
     fixture_step.dependOn(&check_fixtures.step);
     const fixture_tests = b.addTest(.{ .root_module = fixture_module });
     fixture_step.dependOn(&b.addRunArtifact(fixture_tests).step);
