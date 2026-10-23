@@ -1,0 +1,264 @@
+{
+    "cases": [
+        {
+            "file": "case-0.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "minecraft:air",
+                "version": 18168865,
+                "properties": []
+            },
+            "property_key_hex": ""
+        },
+        {
+            "file": "case-1.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:test",
+                "version": 18168865,
+                "properties": [
+                    {
+                        "name": "a",
+                        "kind": "byte",
+                        "number": 1,
+                        "text": null
+                    },
+                    {
+                        "name": "m",
+                        "kind": "int",
+                        "number": -2147483648,
+                        "text": null
+                    },
+                    {
+                        "name": "z",
+                        "kind": "string",
+                        "number": null,
+                        "text": "north"
+                    }
+                ]
+            },
+            "property_key_hex": "0a000001010061010301006d000000800801007a05006e6f72746800"
+        },
+        {
+            "file": "case-2.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:test",
+                "version": 0,
+                "properties": [
+                    {
+                        "name": "a",
+                        "kind": "byte",
+                        "number": 1,
+                        "text": null
+                    },
+                    {
+                        "name": "m",
+                        "kind": "int",
+                        "number": -2147483648,
+                        "text": null
+                    },
+                    {
+                        "name": "z",
+                        "kind": "string",
+                        "number": null,
+                        "text": "north"
+                    }
+                ]
+            },
+            "property_key_hex": "0a000001010061010301006d000000800801007a05006e6f72746800"
+        },
+        {
+            "file": "case-3.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:test",
+                "version": 18168865,
+                "properties": [
+                    {
+                        "name": "a",
+                        "kind": "int",
+                        "number": 1,
+                        "text": null
+                    },
+                    {
+                        "name": "m",
+                        "kind": "int",
+                        "number": -2147483648,
+                        "text": null
+                    },
+                    {
+                        "name": "z",
+                        "kind": "string",
+                        "number": null,
+                        "text": "north"
+                    }
+                ]
+            },
+            "property_key_hex": "0a000003010061010000000301006d000000800801007a05006e6f72746800"
+        },
+        {
+            "file": "case-4.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:test",
+                "version": 0,
+                "properties": [
+                    {
+                        "name": "a",
+                        "kind": "byte",
+                        "number": 1,
+                        "text": null
+                    },
+                    {
+                        "name": "m",
+                        "kind": "int",
+                        "number": -2147483648,
+                        "text": null
+                    },
+                    {
+                        "name": "z",
+                        "kind": "string",
+                        "number": null,
+                        "text": "north"
+                    }
+                ]
+            },
+            "property_key_hex": "0a000001010061010301006d000000800801007a05006e6f72746800"
+        },
+        {
+            "file": "case-5.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "minecraft:air",
+                "version": 2147483647,
+                "properties": []
+            },
+            "property_key_hex": ""
+        },
+        {
+            "file": "case-6.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "shulvyr:limits",
+                "version": -2147483648,
+                "properties": [
+                    {
+                        "name": "empty",
+                        "kind": "string",
+                        "number": null,
+                        "text": ""
+                    },
+                    {
+                        "name": "max",
+                        "kind": "int",
+                        "number": 2147483647,
+                        "text": null
+                    },
+                    {
+                        "name": "negative",
+                        "kind": "byte",
+                        "number": -128,
+                        "text": null
+                    },
+                    {
+                        "name": "positive",
+                        "kind": "byte",
+                        "number": 127,
+                        "text": null
+                    }
+                ]
+            },
+            "property_key_hex": "0a0000080500656d70747900000303006d6178ffffff7f0108006e6567617469766580010800706f7369746976657f00"
+        },
+        {
+            "file": "case-7.network.nbt",
+            "accepted": true,
+            "state": {
+                "name": "minecraft:stone",
+                "version": 0,
+                "properties": []
+            },
+            "property_key_hex": ""
+        },
+        {
+            "file": "case-8.network.nbt",
+            "accepted": false,
+            "state": null,
+            "property_key_hex": null
+        },
+        {
+            "file": "case-9.network.nbt",
+            "accepted": false,
+            "state": null,
+            "property_key_hex": null
+        },
+        {
+            "file": "case-10.network.nbt",
+            "accepted": false,
+            "state": null,
+            "property_key_hex": null
+        }
+    ],
+    "equalities": [
+        {
+            "a": 0,
+            "b": 0,
+            "equal": true
+        },
+        {
+            "a": 0,
+            "b": 5,
+            "equal": true
+        },
+        {
+            "a": 0,
+            "b": 7,
+            "equal": false
+        },
+        {
+            "a": 1,
+            "b": 2,
+            "equal": true
+        },
+        {
+            "a": 1,
+            "b": 3,
+            "equal": false
+        },
+        {
+            "a": 1,
+            "b": 4,
+            "equal": true
+        },
+        {
+            "a": 2,
+            "b": 4,
+            "equal": true
+        },
+        {
+            "a": 3,
+            "b": 4,
+            "equal": false
+        },
+        {
+            "a": 6,
+            "b": 6,
+            "equal": true
+        },
+        {
+            "a": 7,
+            "b": 7,
+            "equal": true
+        }
+    ],
+    "palette": {
+        "roots": 22091,
+        "names": 1477,
+        "properties": 76989,
+        "versions": [
+            18168865
+        ],
+        "semantic_sha256": "3acc493dab9835d56592c94ff67631559f9d6af456a5331bc96447a032db7248"
+    }
+}

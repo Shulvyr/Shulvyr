@@ -14,6 +14,7 @@ pub const OwnedBytes = @import("foundation/OwnedBytes.zig");
 pub const coordinates = @import("math/coordinates.zig");
 pub const ResourceKey = @import("registry/ResourceKey.zig");
 pub const catalog = @import("registry/catalog.zig");
+pub const BlockState = @import("registry/BlockState.zig");
 pub const TickClock = @import("simulation/TickClock.zig");
 pub const Scheduler = @import("simulation/Scheduler.zig").Scheduler;
 pub const Runtime = @import("simulation/Runtime.zig");
@@ -26,4 +27,5 @@ test {
     _ = @import("math/math_test.zig");
     _ = @import("simulation/job_test.zig");
     _ = @import("registry/registry_test.zig");
+    _ = @import("registry/block_test.zig");
 }

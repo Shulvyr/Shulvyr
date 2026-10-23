@@ -1,0 +1,87 @@
+{
+    "schema": 1,
+    "oracles": {
+        "NBT": {
+            "repository": "https://github.com/pmmp/NBT",
+            "branch": "stable",
+            "revision": "5429a21c9321eb154f7fcdaa789d2b5ccbcc6ea3"
+        },
+        "BinaryUtils": {
+            "repository": "https://github.com/pmmp/BinaryUtils",
+            "branch": "stable",
+            "revision": "14c044afa33cb581b4a6d1ea04a87e0bc99e824b"
+        },
+        "BedrockProtocol": {
+            "repository": "https://github.com/axolotl-pm/BedrockProtocol",
+            "branch": "master",
+            "revision": "59e48666b9ca82bdc8c60c518438e2fc3f5e1b60"
+        },
+        "PocketMine-MP": {
+            "repository": "https://github.com/axolotl-pm/PocketMine-MP",
+            "branch": "stable",
+            "revision": "a550eea48212504f95b824eb3a1d67fc3b7f1861"
+        }
+    },
+    "data_source": {
+        "repository": "https://github.com/axolotl-pm/BedrockData",
+        "branch": "master",
+        "revision": "488f81d2ab95841337fb9331efe9d6b74ceddb07",
+        "license": "CC0-1.0"
+    },
+    "palette_sha256": "f0784a6284d6ca7d98cc3472f4ce84241a11e11b18ed16f6591dfd5e6da6fbd6",
+    "generator_sha256": "0e5b9a034b348d3f37287e1f48a50816204e4d58a252ccf1438e20d91a4c8819",
+    "files": {
+        "input.json": {
+            "bytes": 1779,
+            "sha256": "61839806944e9dacf493f7d34b4a8e6bef08d21ffe3feb69a8dd8fe3307a4a6e"
+        },
+        "case-0.network.nbt": {
+            "bytes": 45,
+            "sha256": "ae25287d524b70ac802f0a01055579f9612515433d576f0ac700401eefd64378"
+        },
+        "case-1.network.nbt": {
+            "bytes": 65,
+            "sha256": "ad8e73a44b76a998d70e0a4179825bb001e8ddbbd77b6dbd6d11a70367a58e81"
+        },
+        "case-2.network.nbt": {
+            "bytes": 62,
+            "sha256": "a460559fc6730de7393f942d679a6745336a6e5e12a7353c6425505d187f5483"
+        },
+        "case-3.network.nbt": {
+            "bytes": 65,
+            "sha256": "0d5b802bfc7c12c7e12e2780f159efff199bb6ddbf9bfc84828b0625fe2eaec8"
+        },
+        "case-4.network.nbt": {
+            "bytes": 70,
+            "sha256": "f52dd8c9811620bc6b6fae76607033b389c09c8b8baf0ce0d6096315a40caa7e"
+        },
+        "case-5.network.nbt": {
+            "bytes": 46,
+            "sha256": "b38559222cb1d907170675fcdbcc70244db368393849a1b2569b80bc1e6ad539"
+        },
+        "case-6.network.nbt": {
+            "bytes": 87,
+            "sha256": "a9537894971d205f354647f7fdfc1bbb3d7e9907c0d974869c92e92e6ed23ac7"
+        },
+        "case-7.network.nbt": {
+            "bytes": 34,
+            "sha256": "d5d1351132dea47776180c63b0a3fb3f2d06d35ef4b7c56782d1a918af3bffbe"
+        },
+        "case-8.network.nbt": {
+            "bytes": 47,
+            "sha256": "12a9a5f96d1b4c436420959dda0f8055df9eaa85947a74c6a7792427c266c0ab"
+        },
+        "case-9.network.nbt": {
+            "bytes": 25,
+            "sha256": "7fcd4300ac88259e18aa5183876fbed339f39ecd67737701cd1729841012dca7"
+        },
+        "case-10.network.nbt": {
+            "bytes": 51,
+            "sha256": "090c150ff8a39b17f247a42b20e144cc92cbf31793a064ed474a47af8ab953eb"
+        },
+        "expected.json": {
+            "bytes": 7490,
+            "sha256": "5340d2e2facbd15bb5d49e52b969325e1ca9b02ee681af01a8f844b8d1f10f66"
+        }
+    }
+}

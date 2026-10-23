@@ -8,8 +8,9 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INPUTS = {"required_item_list.json", "biome_id_map.json", "protocol_info.json", "LICENSE"}
+INPUTS = {"required_item_list.json", "biome_id_map.json", "protocol_info.json", "canonical_block_states.nbt", "LICENSE"}
 MAX_FILE_BYTES = 2 * 1024 * 1024
+MAX_PALETTE_BYTES = 8 * 1024 * 1024
 MAX_ENTRIES = 65_536
 KEY = re.compile(r"[a-z0-9_.-]+:[a-z0-9_./-]+", re.ASCII)
 
@@ -106,7 +107,8 @@ def load_inputs(root: Path) -> tuple[dict, dict]:
     for name in sorted(INPUTS):
         expected = manifest["files"][name]
         path = directory / name
-        if path.stat().st_size > MAX_FILE_BYTES:
+        byte_limit = MAX_PALETTE_BYTES if name == "canonical_block_states.nbt" else MAX_FILE_BYTES
+        if path.stat().st_size > byte_limit:
             raise ValueError(f"Registry input exceeds byte limit: {name}")
         data = path.read_bytes()
         if expected != {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}:

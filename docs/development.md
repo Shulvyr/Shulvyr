@@ -14,7 +14,7 @@ when designing each subsystem. Preserve the selected behavior in differential
 tests and record intentional deviations beside that subsystem's contract.
 
 ```sh
-zig fmt --check build.zig build.zig.zon src
+zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig
 zig build
 zig build test --summary all
 zig build test -Doptimize=safe --summary all
@@ -22,6 +22,7 @@ python tools/check_nbt_fixtures.py
 python tools/check_math_fixtures.py
 python tools/generate_registries.py --check
 python tools/check_registry_fixtures.py
+python tools/check_block_fixtures.py
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
 ```
@@ -76,6 +77,9 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   `registry/catalog.zig` provides immutable item and biome identity maps with
   separate internal and network ID types. See [registry generation](registries.md)
   for source hashes, schema limits and snapshot scope.
+- `registry/BlockState.zig` extracts bounded typed properties from NBT, retains
+  the state version separately and produces canonical property dictionary keys.
+  States borrow the encoded input after temporary nodes are freed.
 - `simulation/TickClock.zig` accepts elapsed monotonic nanoseconds. Tick zero is
   due immediately. Catch-up is capped per poll and missed wall-clock deadlines
   are returned as metrics. Logical ticks and pending jobs are not skipped.

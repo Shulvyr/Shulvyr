@@ -44,9 +44,9 @@ Only name-to-number identities are generated here. Item component flags,
 versions and base64 component NBT remain in the untouched source JSON for a
 later item-definition adapter. The generator checks their schema and base64
 encoding but does not interpret NBT or expose item components at runtime.
-Biome source paths gain the explicit `minecraft:` namespace. Block states,
-item metadata variants, migrations and custom registrations need separate
-contracts before they can use these identities.
+Biome source paths gain the explicit `minecraft:` namespace. Block-state
+runtime mappings, item metadata variants, migrations and custom registrations
+need separate contracts before they can use these identities.
 
 ## Reproduce and verify
 
@@ -59,7 +59,7 @@ python tools/generate_registries.py --check
 python tools/check_registry_fixtures.py
 python tools/test_registry_codegen.py
 python tools/test_registry_compile.py
-zig fmt --check build.zig build.zig.zon src
+zig fmt --check build.zig build.zig.zon src data/bedrock/root.zig
 zig build test --summary all
 ```
 
@@ -112,6 +112,55 @@ and version changes, replace the exact input blobs and update their manifest.
 Regenerate, inspect the diff and run the checks before selecting the new
 snapshot for any protocol or persistence adapter.
 
+## Block-state schema
+
+`BlockState.decode` requires one complete NBT root. `decodePrefix` returns the
+first root's exact byte length. They extract a namespaced `name`, a `states`
+compound and an optional i32 `version`, defaulting to zero. `PMMPDataVersion`
+metadata is ignored for identity, following the reference. Other root fields
+are rejected. This is an identity parser, not a saved-world importer or writer.
+
+Properties retain distinct byte, int and raw-string values. They are sorted by
+name. `eql` compares name and typed properties without comparing version.
+`encodeProperties` returns the reference dictionary key: little-endian compound
+NBT with sorted properties, or empty bytes for no properties. Encoding rejects
+output that aliases the state or its borrowed data and preserves output on
+failure. It does not serialize a full saved block state.
+
+The returned state borrows names and string values from input. Temporary NBT
+node allocations are released before returning. Keep input immutable and alive
+while a state or its property views are used. A state owns no heap allocations.
+
+The scalar schema covers every entry in the recorded canonical palette. Its
+explicit guards are 32 properties, 128 bytes per property name and 256 bytes
+per string value. Defaults also cap each NBT root at 4 KiB, depth 8, 128 nodes,
+16 KiB of decoded storage and 16,384 work units per codec traversal. Callers can
+lower the property count and configure codec limits. Duplicate root fields or
+properties are rejected. Other property tag types are unsupported. These
+guards are stricter than the reference's general-purpose NBT map container.
+
+The canonical palette is another exact CC0 input in the data manifest.
+Tests decode all 22,091 entries and compare a SHA-256 digest produced by the
+upstream [BlockStateData](https://github.com/axolotl-pm/PocketMine-MP/blob/a550eea48212504f95b824eb3a1d67fc3b7f1861/src/data/bedrock/block/BlockStateData.php)
+and [BlockStateDictionaryEntry](https://github.com/axolotl-pm/PocketMine-MP/blob/a550eea48212504f95b824eb3a1d67fc3b7f1861/src/network/mcpe/convert/BlockStateDictionaryEntry.php)
+methods. Each digest
+record contains u32 little-endian name length, name bytes, u32 little-endian
+property-key length and property-key bytes, in palette order. Version is checked
+separately. Eleven synthetic schema cases and ten equality pairs cover missing
+versions, metadata, property order, signed boundaries and invalid roots.
+
+```sh
+php tools/generate_block_fixtures.php /path/to/NBT /path/to/BinaryUtils /path/to/BedrockProtocol /path/to/PocketMine-MP
+python tools/check_block_fixtures.py
+zig build test --summary all
+```
+
+Use clean checkouts at the fixture manifest revisions and 64-bit PHP 8.4 or
+newer. The manifest hashes synthetic input, wire fixtures, expected results,
+the canonical palette and the generator. The source classes remain development
+oracles. Their LGPL-3.0-or-later headers are retained in the upstream checkouts.
+The Zig package contains the CC0 data and generated fixture outputs.
+
 ## Reference boundaries
 
 [Axolotl-PM ItemTypeIds](https://github.com/axolotl-pm/PocketMine-MP/blob/a550eea48212504f95b824eb3a1d67fc3b7f1861/src/item/ItemTypeIds.php)
@@ -126,5 +175,7 @@ uses identifiers scoped to an object type.
 rejects duplicate implementations and missing runtime mappings, while its
 [block registry](https://github.com/df-mc/dragonfly/blob/1793369709ceed934675d69e86ff6c828e4216c8/server/world/block_registry.go)
 has an explicit finalize boundary.
+[Dragonfly's block-state representation](https://github.com/df-mc/dragonfly/blob/1793369709ceed934675d69e86ff6c828e4216c8/server/world/block_state.go)
+also separates the name, properties and version.
 These source comparisons inform the identity contract. Their runtimes are not
 part of this package or its current registry tests.

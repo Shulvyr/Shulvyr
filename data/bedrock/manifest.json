@@ -15,6 +15,10 @@
       "bytes": 2306,
       "sha256": "f04995f64eaa65289a2ba7af63091c4694b96df7d68f5ae3eab6396f54eb7b71"
     },
+    "canonical_block_states.nbt": {
+      "bytes": 3102889,
+      "sha256": "f0784a6284d6ca7d98cc3472f4ce84241a11e11b18ed16f6591dfd5e6da6fbd6"
+    },
     "protocol_info.json": {
       "bytes": 9118,
       "sha256": "616ae40c73bd693b2ca9ea617b21c9e4ba922d7409e7e6dada9a23b06ffeebda"

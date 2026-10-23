@@ -20,6 +20,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     core.addOptions("build_options", options);
+    core.addAnonymousImport("bedrock_data", .{
+        .root_source_file = b.path("data/bedrock/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
     const executable = b.addExecutable(.{
         .name = "shulvyr",
         .root_module = b.createModule(.{
