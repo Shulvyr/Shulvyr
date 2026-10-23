@@ -24,7 +24,7 @@ def main() -> None:
             raise ValueError("Oracle sources require a branch and exact Git commit")
     expected = {
         f"{case}.{variant}.nbt"
-        for case in ("all-tags", "scalar", "nested-lists")
+        for case in ("all-tags", "scalar", "nested-lists", "sequence")
         for variant in ("big", "little", "network")
     }
     if set(manifest["files"]) != expected:

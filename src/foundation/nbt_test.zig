@@ -20,6 +20,61 @@ const nested_lists = [_][]const u8{
     @embedFile("fixtures/nbt/nested-lists.little.nbt"),
     @embedFile("fixtures/nbt/nested-lists.network.nbt"),
 };
+const sequences = [_][]const u8{
+    @embedFile("fixtures/nbt/sequence.big.nbt"),
+    @embedFile("fixtures/nbt/sequence.little.nbt"),
+    @embedFile("fixtures/nbt/sequence.network.nbt"),
+};
+
+test "bounded prefixes match upstream multiple-root bytes without changing strict decode" {
+    for (formats, sequences, all_tags, scalars, nested_lists) |format, sequence, tags, scalar, nested| {
+        try expectError(error.TrailingData, nbt.decode(std.testing.failing_allocator, sequence, format, .{}));
+        var offset: usize = 0;
+        for ([_][]const u8{ tags, scalar, nested }) |expected| {
+            var decoded = try nbt.decodePrefix(allocator, sequence[offset..], format, .{ .max_bytes = expected.len });
+            defer decoded.document.deinit();
+            try equal(expected.len, decoded.bytes_read);
+            var output: [1024]u8 = undefined;
+            try std.testing.expectEqualSlices(u8, expected, try nbt.encode(&output, decoded.document.nodes, format, .{}));
+            offset += decoded.bytes_read;
+        }
+        try equal(sequence.len, offset);
+    }
+}
+
+test "prefix validation rejects truncation and resource exhaustion before allocating" {
+    for (formats, all_tags) |format, bytes| {
+        for (0..bytes.len) |length| {
+            try expectError(error.UnexpectedEnd, nbt.decodePrefix(std.testing.failing_allocator, bytes[0..length], format, .{}));
+            try expectError(error.ByteLimit, nbt.decodePrefix(std.testing.failing_allocator, bytes, format, .{ .max_bytes = length }));
+        }
+        const cases = [_]struct { limits: nbt.Limits, err: nbt.Error }{
+            .{ .limits = .{ .max_depth = 1 }, .err = error.DepthLimit },
+            .{ .limits = .{ .max_nodes = 0 }, .err = error.NodeLimit },
+            .{ .limits = .{ .max_allocated_bytes = 0 }, .err = error.AllocationLimit },
+            .{ .limits = .{ .max_work = 0 }, .err = error.WorkLimit },
+            .{ .limits = .{ .max_string_bytes = 0 }, .err = error.StringTooLong },
+        };
+        for (cases) |case| try expectError(case.err, nbt.decodePrefix(std.testing.failing_allocator, bytes, format, case.limits));
+    }
+}
+
+fn prefixAllocationCase(failing: std.mem.Allocator) !void {
+    var prefix = try nbt.decodePrefix(failing, sequences[2], .network, .{});
+    defer prefix.document.deinit();
+    try equal(all_tags[2].len, prefix.bytes_read);
+    try equal(17, prefix.document.nodes.len);
+}
+
+test "prefix allocation failures clean up and malformed tails are not consumed" {
+    try std.testing.checkAllAllocationFailures(allocator, prefixAllocationCase, .{});
+    const bytes = [_]u8{ 1, 0, 42, 0 };
+    var first = try nbt.decodePrefix(allocator, &bytes, .network, .{});
+    defer first.document.deinit();
+    try equal(3, first.bytes_read);
+    try equal(42, first.document.nodes[0].value.byte);
+    try expectError(error.UnexpectedEndTag, nbt.decodePrefix(std.testing.failing_allocator, bytes[first.bytes_read..], .network, .{}));
+}
 
 test "pinned PMMP oracle fixtures decode values and reproduce exact bytes" {
     for (formats, all_tags) |format, bytes| {
@@ -272,4 +327,44 @@ test "bounded malformed corpus never leaks and accepted trees re-encode" {
         }
     }
     try std.testing.expect(accepted_mutations > 0);
+}
+
+fn prefixCorpusCase(input: []const u8, format: nbt.Format) !bool {
+    const limits: nbt.Limits = .{
+        .max_bytes = 256,
+        .max_nodes = 64,
+        .max_collection_len = 64,
+        .max_depth = 8,
+        .max_work = 4096,
+        .max_allocated_bytes = 8192,
+    };
+    var prefix = nbt.decodePrefix(allocator, input, format, limits) catch return false;
+    defer prefix.document.deinit();
+    try std.testing.expect(prefix.bytes_read > 0 and prefix.bytes_read <= input.len);
+    var output: [256]u8 = undefined;
+    try std.testing.expectEqualSlices(u8, input[0..prefix.bytes_read], try nbt.encode(&output, prefix.document.nodes, format, limits));
+    if (prefix.bytes_read < input.len) {
+        try expectError(error.TrailingData, nbt.decode(std.testing.failing_allocator, input, format, limits));
+    }
+    return true;
+}
+
+test "bounded prefix corpus preserves exact consumption and strict framing" {
+    var prng = std.Random.DefaultPrng.init(0x505245464958);
+    const random = prng.random();
+    var input: [256]u8 = undefined;
+    for (0..2048) |iteration| {
+        random.bytes(&input);
+        const length = random.intRangeAtMost(usize, 0, input.len);
+        _ = try prefixCorpusCase(input[0..length], formats[iteration % formats.len]);
+    }
+    var accepted: usize = 0;
+    for (formats, all_tags) |format, fixture| {
+        for (0..fixture.len) |index| {
+            @memcpy(input[0..fixture.len], fixture);
+            input[index] ^= 0xff;
+            if (try prefixCorpusCase(input[0..fixture.len], format)) accepted += 1;
+        }
+    }
+    try std.testing.expect(accepted > 0);
 }

@@ -29,6 +29,20 @@ and an integer-array backing slice. Call `deinit` exactly once. Names, strings a
 byte arrays borrow the input, which must remain immutable and alive until then.
 Allocation failures free any storage already acquired.
 
+`decodePrefix(allocator, input, format, limits)` validates and decodes only the
+first named root. It returns a `Document` with the same ownership contract and
+`bytes_read`, the exact number of input bytes belonging to that root. Advance
+only after success and destroy the returned document exactly once. Remaining
+bytes are not validated by that call. A sequence consumer must validate them and
+bound total bytes, root count, cumulative work and retained storage separately.
+
+For prefix decoding, byte and other limits apply to the first root. Input may
+contain a larger tail. Exhausting the bounded reader while more input exists
+returns `ByteLimit`. Truncated input within that bound returns `UnexpectedEnd`.
+Structural validation and storage-budget checks still finish before allocation.
+The strict `decode` entry point continues to reject trailing data before any
+allocation.
+
 Nodes are in depth-first order, starting at root index zero. Compound and list
 values contain `Children` with a first index and count. Follow `next_sibling`
 exactly that many times. List elements have empty names. A child's descendants
@@ -69,17 +83,22 @@ deadline or decompression. Callers must choose limits for their own boundary.
   negative collection lengths and noncanonical network VarInts are rejected.
 - Compound order and duplicate names are preserved. Map lookup and duplicate
   resolution belong to the consuming schema. This differs from PMMP's map model.
-- Trailing data, unknown tag IDs and `TAG_LongArray` are rejected.
-- Compression, anonymous/headless roots, concatenated roots, world-file headers,
-  storage schemas and full Java-format interoperability are outside this API.
+- Strict decoding rejects trailing data. Unknown tag IDs and `TAG_LongArray`
+  remain unsupported in both decoding entry points.
+- Compression, anonymous/headless roots, whole-sequence allocation, world-file
+  headers, storage schemas and full Java-format interoperability are outside
+  this API.
 
 ## Fixtures
 
-The nine fixtures cover all supported tags, scalar roots and nested lists in
-each format. They include integer extremes, raw strings, typed empty lists and
-nested compounds. Tests assert decoded values and byte-for-byte encoding, with
+The twelve fixtures cover all supported tags, scalar roots, nested lists and
+three-root sequences in each format. They include integer extremes, raw strings,
+typed empty lists and nested compounds. Tests assert decoded values and byte-for-byte encoding, with
 cross-format checks against the independent oracle bytes. Separate malformed
 cases exercise truncation, budgets, tree validation and allocation failure.
+Sequence fixtures come from the upstream `writeMultiple` API. Prefix tests
+check their exact boundaries and re-encode each root against its independent
+single-root bytes. A malformed suffix is rejected by the next prefix call.
 
 The manifest stores each oracle's repository, default branch and exact revision,
 SHA-256 of the generator containing the synthetic input definition, and each

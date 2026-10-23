@@ -163,12 +163,12 @@ const Parser = struct {
         return self.reader.bytes(count);
     }
 
-    fn root(self: *Parser) Error!void {
+    fn root(self: *Parser, require_end: bool) Error!void {
         const kind = try tagType(try self.reader.integer(u8, .little));
         if (kind == .end) return error.UnexpectedEndTag;
         const name = try self.text();
         _ = try self.node(kind, name, 1);
-        if (self.reader.remaining() != 0) return error.TrailingData;
+        if (require_end and self.reader.remaining() != 0) return error.TrailingData;
     }
 
     fn link(self: *Parser, children: *Children, previous: *?u32, child: u32) void {
@@ -249,7 +249,31 @@ pub fn decode(allocator: std.mem.Allocator, input: []const u8, format: Format, l
     try limits.validate();
     if (input.len > limits.max_bytes) return error.ByteLimit;
     var scan: Parser = .{ .reader = .{ .input = input }, .format = format, .budget = .{ .limits = limits } };
-    try scan.root();
+    try scan.root(true);
+    return materialize(allocator, input, format, limits, &scan);
+}
+
+pub const DecodedPrefix = struct { document: Document, bytes_read: usize };
+
+/// Decodes the first named root and returns its exact byte length.
+/// Limits apply to that root. The caller must bound a sequence's total work,
+/// bytes, root count and retained documents, and validate the remaining input.
+pub fn decodePrefix(allocator: std.mem.Allocator, input: []const u8, format: Format, limits: Limits) Error!DecodedPrefix {
+    try limits.validate();
+    const bounded = input[0..@min(input.len, limits.max_bytes)];
+    var scan: Parser = .{ .reader = .{ .input = bounded }, .format = format, .budget = .{ .limits = limits } };
+    scan.root(false) catch |err| {
+        if (err == error.UnexpectedEnd and bounded.len < input.len) return error.ByteLimit;
+        return err;
+    };
+    const consumed = scan.reader.position;
+    return .{
+        .document = try materialize(allocator, input[0..consumed], format, limits, &scan),
+        .bytes_read = consumed,
+    };
+}
+
+fn materialize(allocator: std.mem.Allocator, input: []const u8, format: Format, limits: Limits, scan: *const Parser) Error!Document {
     const nodes = try allocator.alloc(Node, scan.budget.nodes);
     errdefer allocator.free(nodes);
     const integers = try allocator.alloc(i32, scan.integer_count);
@@ -261,7 +285,7 @@ pub fn decode(allocator: std.mem.Allocator, input: []const u8, format: Format, l
         .nodes = nodes,
         .integers = integers,
     };
-    try parse.root();
+    try parse.root(true);
     return .{ .nodes = nodes, .allocator = allocator, .integers = integers };
 }
 

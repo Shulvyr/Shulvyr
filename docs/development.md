@@ -44,6 +44,8 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
 - `foundation/nbt.zig` validates named NBT roots before allocation and provides
   bounded big-endian, little-endian and network codecs. Documents own node and
   integer storage while borrowing names, strings and byte arrays from input.
+  Strict decoding requires one complete root. Prefix decoding reports the
+  first root's size and leaves sequence-level limits to its caller.
   See [NBT contracts and oracle fixtures](nbt.md) for limits and format policy.
 - `foundation/Uuid.zig` owns 16 canonical bytes and parses/formats hexadecimal
   8-4-4-4-12 text without allocation. Parsing accepts both letter cases and

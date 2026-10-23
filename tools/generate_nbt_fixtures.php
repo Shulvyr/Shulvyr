@@ -125,6 +125,16 @@ foreach (['big' => new BigEndianNbtSerializer(), 'little' => new LittleEndianNbt
         }
         $manifest['files'][$filename] = ['bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes)];
     }
+    $bytes = $serializer->writeMultiple(array_values($cases));
+    $decoded = $serializer->readMultiple($bytes, 64);
+    if (count($decoded) !== count($cases) || $serializer->writeMultiple($decoded) !== $bytes) {
+        throw new RuntimeException('Oracle sequence round trip failed');
+    }
+    $filename = "sequence.$format.nbt";
+    if (file_put_contents("$directory/$filename", $bytes) !== strlen($bytes)) {
+        throw new RuntimeException('Cannot write sequence fixture');
+    }
+    $manifest['files'][$filename] = ['bytes' => strlen($bytes), 'sha256' => hash('sha256', $bytes)];
 }
 $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
 if (file_put_contents("$directory/manifest.json", $json) !== strlen($json)) {
