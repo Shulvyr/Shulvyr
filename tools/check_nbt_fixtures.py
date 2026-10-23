@@ -1,0 +1,42 @@
+"""Check committed oracle bytes and their generator against the manifest."""
+
+import hashlib
+import json
+import re
+from pathlib import Path
+
+
+def main() -> None:
+    root = Path(__file__).resolve().parent.parent
+    directory = root / "src/foundation/fixtures/nbt"
+    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    if manifest["schema"] != 1:
+        raise ValueError("Unsupported fixture manifest schema")
+    sources = manifest["sources"]
+    if set(sources) != {"NBT", "BinaryUtils", "BedrockProtocol"}:
+        raise ValueError("Unexpected oracle source set")
+    if not all(re.fullmatch(r"[0-9a-f]{40}", sha) for sha in sources.values()):
+        raise ValueError("Oracle revisions must be exact Git commits")
+    expected = {
+        f"{case}.{variant}.nbt"
+        for case in ("all-tags", "scalar", "nested-lists")
+        for variant in ("big", "little", "network")
+    }
+    if set(manifest["files"]) != expected:
+        raise ValueError("Unexpected fixture manifest file set")
+    if {path.name for path in directory.glob("*.nbt")} != expected:
+        raise ValueError("Fixture directory differs from manifest")
+    generator = root / "tools/generate_nbt_fixtures.php"
+    if hashlib.sha256(generator.read_bytes()).hexdigest() != manifest["generator_sha256"]:
+        raise ValueError("Oracle generator changed without regenerating fixtures")
+    for name, metadata in manifest["files"].items():
+        data = (directory / name).read_bytes()
+        if len(data) != metadata["bytes"]:
+            raise ValueError(f"Fixture size mismatch: {name}")
+        if hashlib.sha256(data).hexdigest() != metadata["sha256"]:
+            raise ValueError(f"Fixture SHA-256 mismatch: {name}")
+    print(f"Verified {len(expected)} NBT fixtures and oracle generator")
+
+
+if __name__ == "__main__":
+    main()

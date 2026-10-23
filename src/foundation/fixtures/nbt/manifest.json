@@ -1,0 +1,47 @@
+{
+    "schema": 1,
+    "sources": {
+        "NBT": "51b8d6a97065fb93e0b4f660b65164b6e1ed2fff",
+        "BinaryUtils": "14c044afa33cb581b4a6d1ea04a87e0bc99e824b",
+        "BedrockProtocol": "8eb5a390a8d913ee54b97ac71f42899ecbb5c419"
+    },
+    "generator_sha256": "065cc020cefe4746527e073e3f030ce855d678d31ad484dba663123dae6748d2",
+    "files": {
+        "all-tags.big.nbt": {
+            "bytes": 218,
+            "sha256": "2cf0a5b8b863deb2538b83a61abb333641ce817a787aadf0f2dd8982f3e99c61"
+        },
+        "scalar.big.nbt": {
+            "bytes": 12,
+            "sha256": "be05b05de592df13277b2fa4cde9dd508a130a7164f9cd06c6f8651dcd53ed4a"
+        },
+        "nested-lists.big.nbt": {
+            "bytes": 26,
+            "sha256": "7215328ffddc54ecd93f4c37a34711c9ca515d0fbbfe189abe922e13070e191b"
+        },
+        "all-tags.little.nbt": {
+            "bytes": 218,
+            "sha256": "1b7277799bac641b960393bf3c508199bfa1f3964788a05982c567b7622a603f"
+        },
+        "scalar.little.nbt": {
+            "bytes": 12,
+            "sha256": "84435d321494a585b21cfa14ca961f5eaff607361b53b6d0c099e3b72b2dcddd"
+        },
+        "nested-lists.little.nbt": {
+            "bytes": 26,
+            "sha256": "632d2ad060ce6d2cf3b5bd9e3577b64f9f7b3f819fbb375377901d03fd592792"
+        },
+        "all-tags.network.nbt": {
+            "bytes": 186,
+            "sha256": "eefb921fb362a5d6fe94f79d8fcb96d8ec69490d861cf1aeb6abca6e79ed5175"
+        },
+        "scalar.network.nbt": {
+            "bytes": 13,
+            "sha256": "3d42e6a5620f8cb7694f6e7fe68c98f75c5a748799ec5241230830ec0b97d72e"
+        },
+        "nested-lists.network.nbt": {
+            "bytes": 11,
+            "sha256": "e6e93f24003231ac8c5a55694d5494673f84998b7a40c46c734c1fdbcc69a65d"
+        }
+    }
+}

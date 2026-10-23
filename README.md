@@ -3,7 +3,7 @@
 An independent Minecraft: Bedrock server project written in Zig.
 
 Development has started with the foundation runtime. It runs a finite tick loop
-and provides binary codecs, bounded queues, generational handles and timers.
+and provides binary and NBT codecs, bounded queues, generational handles and timers.
 Bedrock networking and gameplay are not implemented yet.
 
 ## Build

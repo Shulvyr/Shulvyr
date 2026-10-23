@@ -3,11 +3,21 @@
 The foundation uses Zig 0.17.0 and the Zig standard library. There are no external
 Zig packages or runtime libraries. The build rejects other compiler versions.
 
+Behavior ports use pinned PocketMine-MP fixtures, with
+[Axolotl-PM](https://github.com/axolotl-pm/PocketMine-MP) and
+[Altay](https://github.com/altayofficial/Altay) checked for maintained behavior and
+fixes. Compare [Endstone](https://github.com/EndstoneMC/endstone),
+[Dragonfly](https://github.com/df-mc/dragonfly) and relevant projects from the
+[Bedrock Wiki catalog](https://wiki.bedrock.dev/servers/server-software#active-software)
+when designing each subsystem. Preserve the selected behavior in differential
+tests and record intentional deviations beside that subsystem's contract.
+
 ```sh
 zig fmt --check build.zig build.zig.zon src
 zig build
 zig build test --summary all
 zig build test -Doptimize=safe --summary all
+python tools/check_nbt_fixtures.py
 ```
 
 CI runs these checks on x86_64 Linux and Windows. To compile for another target
@@ -25,6 +35,10 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   canonical unsigned LEB128 with optional signed ZigZag encoding. Text uses a
   u32 byte-length prefix, a caller-provided byte limit and UTF-8 validation.
   These primitives do not define a Bedrock protocol adapter.
+- `foundation/nbt.zig` validates named NBT roots before allocation and provides
+  bounded big-endian, little-endian and network codecs. Documents own node and
+  integer storage while borrowing names, strings and byte arrays from input.
+  See [NBT contracts and oracle fixtures](nbt.md) for limits and format policy.
 - `foundation/Pool.zig` makes one allocation and keeps slots at stable addresses.
   Handles validate owner, slot and generation. The owner ID identifies a pool
   lifetime and must not be reused while stale handles can exist. Remove values
@@ -55,7 +69,7 @@ stdout, stderr and exit status.
 
 ## Next boundaries
 
-NBT variants, UUID and broader math, registry generation, PMMP oracle fixtures,
+UUID and broader math, registry generation, broader PMMP behavior fixtures,
 transport, world state and storage remain separate implementation steps. A
 protocol target and dependency choices still need their client and fixture
 evidence before those subsystems are introduced.

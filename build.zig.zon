@@ -13,5 +13,7 @@
         "docs",
         "tools/bootstrap_zig.py",
         "tools/zig-downloads.json",
+        "tools/check_nbt_fixtures.py",
+        "tools/generate_nbt_fixtures.php",
     },
 }
