@@ -1,0 +1,17 @@
+.{
+    .name = .shulvyr,
+    .version = "0.1.0-dev",
+    .fingerprint = 0xf40379b6681ebd03,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        ".zigversion",
+        "src",
+        "README.md",
+        "docs",
+        "tools/bootstrap_zig.py",
+        "tools/zig-downloads.json",
+    },
+}

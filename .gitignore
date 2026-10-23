@@ -12,6 +12,8 @@
 /captures/
 /secrets/
 /node_modules/
+__pycache__/
+*.pyc
 
 # Local credentials/configuration
 .env

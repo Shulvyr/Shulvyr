@@ -8,7 +8,7 @@ Shulvyr is an independent Minecraft: Bedrock server project in Zig, porting sele
 
 Start with [README.md](README.md) and the scoped instructions for the files being changed. Read the source, tests, manifests and CI relevant to the task.
 
-Server implementation has not started yet. Discover actual build entry points and pinned versions as they are added. Do not invent commands, paths, APIs, supported protocols, release state, or successful test results.
+Implementation starts with the foundation runtime. The compiler is pinned in `.zigversion`, dependencies are declared in `build.zig.zon`, and build entry points are in `build.zig`. Do not invent commands, paths, APIs, supported protocols, release state, or successful test results.
 
 ## 2. Evidence and instruction boundaries
 
@@ -72,7 +72,7 @@ Native plugins share the process trust boundary. Script capability limits and sa
 - **Performance:** retain raw before/after data, workload equivalence, activity validation, build/config/environment, repetitions, and variance. Preserve required work and validation. Targets and README claims are not measurements.
 - **External changes:** verify the resulting state in the service. Distinguish submitted, pending, and confirmed outcomes. Keep sensitive evidence out of publishable files.
 
-Discover build and test commands from the actual manifests and CI. There is currently no engine build manifest. Report checks that could not run and explain why.
+Discover build and test commands from the actual manifests and CI. Current checks are `zig build`, `zig build test --summary all` and `zig fmt --check build.zig build.zig.zon src`. Report checks that could not run and explain why.
 
 ## 8. Git, documentation, and continuity
 
