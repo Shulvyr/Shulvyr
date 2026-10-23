@@ -30,7 +30,6 @@
         "tools/native-transport/build_probe.py",
         "tools/native-transport/test_build_probe.py",
         "tools/native-transport/probe.zig",
-        "tools/native-transport/rtc_api.h",
         "tools/native-transport/sources.json",
         "tools/native-transport/requirements.txt",
     },

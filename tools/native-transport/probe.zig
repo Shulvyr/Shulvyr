@@ -1,119 +1,24 @@
 const std = @import("std");
-const Mailbox = @import("shulvyr").Mailbox;
 const framing = @import("shulvyr").framing;
 const Session = @import("shulvyr").TransportSession;
 const Manager = @import("shulvyr").ConnectionManager(8, 16, 4);
 const Connection = Manager.Connection;
-const connection = @import("shulvyr").connection;
-const FrameSink = @import("shulvyr").FrameSink;
-const Inbox = @import("shulvyr").Inbox(16);
-
-const Task = @import("shulvyr").teardown.Task;
 const Runtime = @import("shulvyr").Runtime;
-const c = @import("rtc");
+const webrtc = @import("webrtc");
+const NativePeer = webrtc.Peer(16, 4);
+const c = webrtc.native;
 
-// This development probe owns all contexts until rtcCleanup returns. It uses
-// loopback ICE only and never prints SDP, ICE credentials or native log text.
-const ChannelContext = struct { parent: *Context, channel: framing.Channel, id: c_int = -1 };
-const Context = struct {
-    io: std.Io,
-    session_id: Session.Id = .{ .owner = 1, .index = 0, .generation = 1 },
-    events: Mailbox(c_int, 4) = .{},
-    inbox: *Inbox = undefined,
-    inbox_storage: Inbox = .{},
-    channel_contexts: [2]ChannelContext = undefined,
-    failed: std.atomic.Value(bool) = .init(false),
-    gathering_done: std.atomic.Value(bool) = .init(false),
-    closing: std.atomic.Value(bool) = .init(false),
+// Loopback development tooling. Never print SDP or ICE credentials.
+const Blocker = struct {
+    io: std.Io = undefined,
     callbacks: std.atomic.Value(u32) = .init(0),
     hold_entered: std.atomic.Value(bool) = .init(false),
     hold_release: std.atomic.Value(bool) = .init(false),
-    rejected_channels: std.atomic.Value(u32) = .init(0),
-    last_rejected: std.atomic.Value(c_int) = .init(-1),
-
-    fn init(self: *Context, allocator: std.mem.Allocator, external: ?*Inbox) !void {
-        try self.events.init();
-        self.inbox = external orelse &self.inbox_storage;
-        if (external == null) try self.inbox.init(self.io, allocator, self.session_id, .{ .frame_bytes = 17, .payload_bytes = 16 * 17 });
-        for (&self.channel_contexts, 0..) |*binding, channel| binding.* = .{ .parent = self, .channel = @fromBackingInt(@intCast(channel)) };
-    }
-
-    fn pushChannel(self: *Context, dc: c_int) void {
-        var pending: ?c_int = dc;
-        self.events.send(self.io, &pending) catch {
-            self.failed.store(true, .release);
-            self.inbox.stop(self.session_id, .delivery_failure) catch {};
-            // No callbacks were installed on this new handle. Retire it here
-            // rather than lose ownership when the discovery queue is full.
-            if (c.rtcDeleteDataChannel(dc) >= 0) self.last_rejected.store(dc, .release);
-            _ = self.rejected_channels.fetchAdd(1, .release);
-        };
-    }
-
-    fn from(raw: ?*anyopaque) *Context {
-        return @ptrCast(@alignCast(raw.?));
-    }
+    failed: std.atomic.Value(bool) = .init(false),
 };
 
-fn gathering(_: c_int, state: c.rtcGatheringState, raw: ?*anyopaque) callconv(.c) void {
-    const context = Context.from(raw);
-    _ = context.callbacks.fetchAdd(1, .acq_rel);
-    defer _ = context.callbacks.fetchSub(1, .acq_rel);
-    if (state == c.RTC_GATHERING_COMPLETE) context.gathering_done.store(true, .release);
-}
-
-fn incoming(_: c_int, dc: c_int, raw: ?*anyopaque) callconv(.c) void {
-    const context = Context.from(raw);
-    _ = context.callbacks.fetchAdd(1, .acq_rel);
-    defer _ = context.callbacks.fetchSub(1, .acq_rel);
-    // Channel handles remain owned even during shutdown. The owner drains them
-    // after unregistering this callback, before destroying the peer.
-    context.pushChannel(dc);
-}
-
-fn message(id: c_int, bytes: [*c]const u8, size: c_int, raw: ?*anyopaque) callconv(.c) void {
-    const binding: *ChannelContext = @ptrCast(@alignCast(raw.?));
-    const context = binding.parent;
-    _ = context.callbacks.fetchAdd(1, .acq_rel);
-    defer _ = context.callbacks.fetchSub(1, .acq_rel);
-    if (context.closing.load(.acquire)) return;
-    if (id < 0 or id != binding.id) {
-        context.failed.store(true, .release);
-        context.inbox.stop(context.session_id, .delivery_failure) catch {};
-        return;
-    }
-    if (size < 2 or size > 17 or bytes == null) {
-        context.inbox.stop(context.session_id, .invalid_frame) catch {
-            context.failed.store(true, .release);
-        };
-        return;
-    }
-    // Admission failures are sticky and observed by the owner outside the queue.
-    context.inbox.post(context.session_id, binding.channel, bytes[0..@intCast(size)]) catch |err| switch (err) {
-        error.Closed, error.QueueFull, error.PayloadBudgetExceeded, error.InvalidFrame, error.OutOfMemory => {},
-        else => context.failed.store(true, .release),
-    };
-}
-
-fn closed(id: c_int, raw: ?*anyopaque) callconv(.c) void {
-    const binding: *ChannelContext = @ptrCast(@alignCast(raw.?));
-    const context = binding.parent;
-    _ = context.callbacks.fetchAdd(1, .acq_rel);
-    defer _ = context.callbacks.fetchSub(1, .acq_rel);
-    if (context.closing.load(.acquire)) return;
-    if (id < 0 or id != binding.id) {
-        context.failed.store(true, .release);
-        context.inbox.stop(context.session_id, .delivery_failure) catch {};
-        return;
-    }
-    context.inbox.stop(context.session_id, .transport_closed) catch {
-        context.failed.store(true, .release);
-    };
-}
-
 fn blockedMessage(_: c_int, _: [*c]const u8, _: c_int, raw: ?*anyopaque) callconv(.c) void {
-    const binding: *ChannelContext = @ptrCast(@alignCast(raw.?));
-    const context = binding.parent;
+    const context: *Blocker = @ptrCast(@alignCast(raw.?));
     _ = context.callbacks.fetchAdd(1, .acq_rel);
     defer _ = context.callbacks.fetchSub(1, .acq_rel);
     context.hold_entered.store(true, .release);
@@ -148,79 +53,11 @@ fn pause(io: std.Io, start: std.Io.Timestamp) !void {
     try std.Io.sleep(io, .fromMilliseconds(1), .awake);
 }
 
-const labels = [_][:0]const u8{ "ReliableDataChannel", "UnreliableDataChannel" };
-const NativeSink = struct {
-    pair: *Pair,
-    peer: usize,
-
-    fn buffered(raw: *anyopaque, channel: framing.Channel) FrameSink.Error!u64 {
-        const self: *NativeSink = @ptrCast(@alignCast(raw));
-        const dc = self.pair.channels[self.peer][@backingInt(channel)];
-        if (dc < 0) return error.Closed;
-        const amount = c.rtcGetBufferedAmount(dc);
-        if (amount < 0) return error.Failed;
-        return @intCast(amount);
-    }
-
-    fn send(raw: *anyopaque, channel: framing.Channel, frame: []const u8) FrameSink.Error!FrameSink.Admission {
-        const self: *NativeSink = @ptrCast(@alignCast(raw));
-        const dc = self.pair.channels[self.peer][@backingInt(channel)];
-        if (dc < 0 or !c.rtcIsOpen(dc)) return error.Closed;
-        if (c.rtcSendMessage(dc, frame.ptr, @intCast(frame.len)) < 0) return error.Failed;
-        return .accepted;
-    }
-
-    fn sink(self: *NativeSink) FrameSink {
-        return .{ .session_id = self.pair.contexts[self.peer].session_id, .context = self, .buffered = buffered, .send = send };
-    }
-};
 var finalized_peers: u32 = 0;
 var owner_ticks: u32 = 0;
 var graceful_closes: u32 = 0;
 var backpressure_checks: u32 = 0;
 var reused_connection_slots: u32 = 0;
-
-const NativePeer = struct {
-    context: *Context,
-    peer: c_int = -1,
-    channels: [2]c_int = @splat(-1),
-    extra: [5]c_int = @splat(-1),
-    orphan: ?c_int = null,
-    entered: std.atomic.Value(bool) = .init(false),
-
-    fn deleteChannel(dc: *c_int) error{Failed}!void {
-        if (dc.* < 0) return;
-        // Deletion itself must provide the channel callback barrier.
-        if (c.rtcDeleteDataChannel(dc.*) < 0) return error.Failed;
-        dc.* = -1;
-    }
-
-    fn finalize(raw: *anyopaque) error{Failed}!void {
-        const self: *NativePeer = @ptrCast(@alignCast(raw));
-        self.context.closing.store(true, .release);
-        self.entered.store(true, .release);
-        if (self.peer >= 0) {
-            if (c.rtcSetDataChannelCallback(self.peer, null) < 0) return error.Failed;
-            if (c.rtcSetGatheringStateChangeCallback(self.peer, null) < 0) return error.Failed;
-        }
-        if (self.context.events.queue != null) {
-            while (true) {
-                if (self.orphan == null) self.orphan = self.context.events.receive(self.context.io) catch return error.Failed;
-                if (self.orphan) |dc| {
-                    if (c.rtcDeleteDataChannel(dc) < 0) return error.Failed;
-                    self.orphan = null;
-                } else break;
-            }
-        }
-        for (&self.channels) |*dc| try deleteChannel(dc);
-        for (&self.extra) |*dc| try deleteChannel(dc);
-        if (self.peer >= 0) {
-            if (c.rtcDeletePeerConnection(self.peer) < 0) return error.Failed;
-            self.peer = -1;
-        }
-        if (self.context.callbacks.load(.acquire) != 0) return error.Failed;
-    }
-};
 
 const Owner = struct {
     manager: Manager = .{},
@@ -253,32 +90,26 @@ const Owner = struct {
 
 const Pair = struct {
     owner: *Owner,
-    native: [2]NativePeer = undefined,
-    extra: [2][5]c_int = .{ @splat(-1), @splat(-1) },
-    contexts: [2]Context,
-    peers: [2]c_int = .{ -1, -1 },
-    channels: [2][2]c_int = .{ .{ -1, -1 }, .{ -1, -1 } },
+    native: [2]NativePeer = .{ .{}, .{} },
+    ids: [2]Session.Id = undefined,
+    blockers: [2]Blocker = .{ .{}, .{} },
+    provider_bound: [2]bool = .{ false, false },
     received: [2][2]u8 = .{ .{ 0, 0 }, .{ 0, 0 } },
     seen: [2][2]u32 = .{ .{ 0, 0 }, .{ 0, 0 } },
     connection_ready: [2]bool = .{ false, false },
-    expected_callback_failure: [2]bool = .{ false, false },
+    expected_fault: [2]webrtc.Fault = .{ .none, .none },
     closed_seen: [2]bool = .{ false, false },
     accept_packets: bool = true,
-    sinks: [2]NativeSink = undefined,
     receipt_count: [2]u8 = .{ 0, 0 },
     receipt_seen: [2]u64 = .{ 0, 0 },
     framed_messages: usize = 0,
     cycle: u8,
 
-    fn init(self: *Pair, allocator: std.mem.Allocator) !void {
+    fn init(self: *Pair) !void {
         try check(c.rtcSetThreadPoolSize(4));
-        var config = std.mem.zeroes(c.rtcConfiguration);
-        config.bindAddress = "127.0.0.1";
-        config.disableAutoNegotiation = true;
-        config.maxMessageSize = 1024;
-        for (&self.contexts, 0..) |*context, i| {
-            self.native[i] = .{ .context = context };
-            context.session_id = try self.owner.manager.admit(.{
+        for (&self.native, 0..) |*peer, i| {
+            self.blockers[i].io = self.owner.io;
+            self.ids[i] = try self.owner.manager.admit(.{
                 .receive = .{ .frame_bytes = 17, .message_bytes = 64 },
                 .incoming_bytes = 16 * 17,
                 .outgoing = .{
@@ -288,39 +119,20 @@ const Pair = struct {
                 },
                 .negotiation_timeout_ns = 15 * std.time.ns_per_s,
             }, self.now());
-            if (context.session_id.generation > 1) reused_connection_slots += 1;
+            if (self.ids[i].generation > 1) reused_connection_slots += 1;
             self.connection_ready[i] = true;
-            try context.init(allocator, &(try self.node(i)).inbox);
-            self.sinks[i] = .{ .pair = self, .peer = i };
-            var provider: ?connection.Provider = .{ .sink = self.sinks[i].sink(), .finalizer = .{ .session = context.session_id, .context = &self.native[i], .finalize = NativePeer.finalize } };
-            try self.owner.manager.attach(context.session_id, &provider);
-            self.peers[i] = c.rtcCreatePeerConnection(&config);
-            self.native[i].peer = self.peers[i];
-            try check(self.peers[i]);
-            c.rtcSetUserPointer(self.peers[i], context);
-            try check(c.rtcSetGatheringStateChangeCallback(self.peers[i], gathering));
-            try check(c.rtcSetDataChannelCallback(self.peers[i], incoming));
-        }
-        for (labels, 0..) |label, i| {
-            var options = std.mem.zeroes(c.rtcDataChannelInit);
-            options.reliability.unordered = i == 1;
-            options.reliability.unreliable = i == 1;
-            self.channels[0][i] = c.rtcCreateDataChannelEx(self.peers[0], label, &options);
-            self.native[0].channels[i] = self.channels[0][i];
-            try check(self.channels[0][i]);
-            self.contexts[0].channel_contexts[i].id = self.channels[0][i];
-            c.rtcSetUserPointer(self.channels[0][i], &self.contexts[0].channel_contexts[i]);
-            try check(c.rtcSetMessageCallback(self.channels[0][i], message));
-            try check(c.rtcSetClosedCallback(self.channels[0][i], closed));
+            try peer.bind(&self.owner.manager, self.ids[i], .{});
+            self.provider_bound[i] = true;
+            try peer.start(if (i == 0) .offerer else .answerer, "127.0.0.1");
         }
     }
 
     fn node(self: *Pair, peer: usize) !*Connection {
-        return self.owner.manager.get(self.contexts[peer].session_id);
+        return self.owner.manager.get(self.ids[peer]);
     }
 
     fn beginClose(self: *Pair, peer: usize) !void {
-        if (self.connection_ready[peer]) try self.owner.manager.forceClose(self.contexts[peer].session_id, .requested);
+        if (self.connection_ready[peer]) try self.owner.manager.forceClose(self.ids[peer], .requested);
     }
 
     fn collectFinalizers(self: *Pair) !bool {
@@ -331,11 +143,10 @@ const Pair = struct {
         while (try self.owner.manager.nextEvent(allow_input)) |event| {
             const id = event.sessionId();
             var found: ?usize = null;
-            for (self.contexts, 0..) |context, index| {
-                if (self.connection_ready[index] and std.meta.eql(context.session_id, id)) found = index;
+            for (self.ids, 0..) |known, index| {
+                if (self.connection_ready[index] and std.meta.eql(known, id)) found = index;
             }
             const peer = found orelse return error.UnexpectedConnectionEvent;
-            const context = &self.contexts[peer];
             switch (event) {
                 .opened => {},
                 .message => |received| {
@@ -355,7 +166,7 @@ const Pair = struct {
                     try expect(!self.closed_seen[peer]);
                     const sequence = completion.ticket.sequence;
                     try expect(sequence >= 1 and sequence <= 64);
-                    try expect(std.meta.eql(completion.ticket.session, context.session_id));
+                    try expect(std.meta.eql(completion.ticket.session, self.ids[peer]));
                     try expect(completion.outcome == .drained and completion.payload_bytes == 16);
                     const fragments: u16 = if (completion.channel == .reliable) 3 else 1;
                     try expect(completion.frames == fragments and completion.wire_bytes == 16 + fragments);
@@ -369,12 +180,9 @@ const Pair = struct {
                 .finalized => |done| {
                     if (done.task) |task| {
                         try expect(task.context == @as(*anyopaque, &self.native[peer]));
-                        try expect(self.native[peer].peer == -1 and context.callbacks.load(.acquire) == 0);
+                        try expect(self.native[peer].peer == -1 and self.native[peer].callbacks.load(.acquire) == 0);
                         finalized_peers += 1;
                     }
-                    self.peers[peer] = -1;
-                    self.channels[peer] = @splat(-1);
-                    self.extra[peer] = @splat(-1);
                 },
             }
         }
@@ -382,90 +190,47 @@ const Pair = struct {
 
     fn awaitPeer(self: *Pair, peer: usize) !void {
         if (!self.connection_ready[peer]) return;
-        const start = std.Io.Clock.awake.now(self.contexts[peer].io);
+        const start = std.Io.Clock.awake.now(self.owner.io);
         while ((try self.node(peer)).phase != .retired) {
             // Management cleanup must finish even after a deliberately injected
             // ingress failure. It does not validate or consume application data.
             try self.owner.tick(0);
             try self.drainEvents(false);
-            if ((try self.node(peer)).phase != .retired) try pause(self.contexts[peer].io, start);
+            if ((try self.node(peer)).phase != .retired) try pause(self.owner.io, start);
         }
     }
 
     fn deinit(self: *Pair) !void {
-        for (&self.contexts) |*context| context.hold_release.store(true, .release);
+        for (&self.blockers) |*blocker| blocker.hold_release.store(true, .release);
         for (0..2) |peer| try self.beginClose(peer);
         for (0..2) |peer| try self.awaitPeer(peer);
         // Global cleanup is a management operation after per-peer barriers.
         c.rtcCleanup();
-        for (&self.contexts, 0..) |*context, peer| {
-            context.events.close(context.io);
-            try expect(context.callbacks.load(.acquire) == 0);
-            try expect(context.failed.load(.acquire) == self.expected_callback_failure[peer]);
-            if (self.connection_ready[peer]) {
-                try self.owner.manager.retire(context.session_id);
-                if (self.owner.manager.get(context.session_id)) |_| {
-                    return error.RetiredSessionStillResolves;
-                } else |err| try expect(err == error.StaleSession);
+        for (&self.native, 0..) |*peer, i| {
+            try expect(self.blockers[i].callbacks.load(.acquire) == 0 and !self.blockers[i].failed.load(.acquire));
+            if (!self.connection_ready[i]) continue;
+            if (self.provider_bound[i]) {
+                try expect(peer.callbacks.load(.acquire) == 0);
+                try expect(peer.fault.load(.acquire) == self.expected_fault[i]);
+                try expect(!peer.untracked_handles.load(.acquire));
+                try peer.deinit();
             }
+            try self.owner.manager.retire(self.ids[i]);
+            if (self.owner.manager.get(self.ids[i])) |_| {
+                return error.RetiredSessionStillResolves;
+            } else |err| try expect(err == error.StaleSession);
         }
     }
 
     fn drain(self: *Pair) !void {
         var max_discoveries: usize = 0;
-        for (&self.contexts, 0..) |*context, peer| {
-            if (!self.connection_ready[peer]) continue;
-            const current = try self.node(peer);
-            var discoveries: usize = 0;
-            if (current.phase != .closing and current.phase != .retired) {
-                while (discoveries < 16) : (discoveries += 1) {
-                    const dc = (try context.events.receive(context.io)) orelse break;
-                    // Take ownership before validation, so failed probes clean up.
-                    var slot: ?usize = null;
-                    for (self.channels[peer], 0..) |known, i| {
-                        if (known < 0) {
-                            slot = i;
-                            break;
-                        }
-                    }
-                    if (slot == null) {
-                        try check(c.rtcDeleteDataChannel(dc));
-                        return error.ExtraChannel;
-                    }
-                    self.channels[peer][slot.?] = dc;
-                    self.native[peer].channels[slot.?] = dc;
-                    var label: [64]u8 = undefined;
-                    const length = c.rtcGetDataChannelLabel(dc, &label, label.len);
-                    try check(length);
-                    try expect(length > 0 and length <= label.len and label[@intCast(length - 1)] == 0);
-                    const name = label[0..@intCast(length - 1)];
-                    var index: ?usize = null;
-                    for (labels, 0..) |expected, i| {
-                        if (std.mem.eql(u8, name, expected)) index = i;
-                    }
-                    try expect(peer == 1 and index != null);
-                    if (index.? != slot.?) {
-                        try expect(self.channels[peer][index.?] < 0);
-                        self.channels[peer][index.?] = dc;
-                        self.channels[peer][slot.?] = -1;
-                        self.native[peer].channels[index.?] = dc;
-                        self.native[peer].channels[slot.?] = -1;
-                    }
-                    var protocol: [1]u8 = undefined;
-                    try expect(c.rtcGetDataChannelProtocol(dc, &protocol, protocol.len) == 1 and protocol[0] == 0);
-                    var reliability: c.rtcReliability = undefined;
-                    try check(c.rtcGetDataChannelReliability(dc, &reliability));
-                    try expect(reliability.unordered == (index.? == 1));
-                    try expect(reliability.unreliable == (index.? == 1));
-                    try expect(reliability.maxRetransmits == 0 and reliability.maxPacketLifeTime == 0);
-                    context.channel_contexts[index.?].id = dc;
-                    c.rtcSetUserPointer(dc, &context.channel_contexts[index.?]);
-                    try check(c.rtcSetMessageCallback(dc, message));
-                    try check(c.rtcSetClosedCallback(dc, closed));
-                }
-            }
-            max_discoveries = @max(max_discoveries, discoveries);
-            if (context.failed.load(.acquire)) return error.CallbackFailed;
+        for (&self.native, 0..) |*peer, i| {
+            if (!self.connection_ready[i]) continue;
+            const current = try self.node(i);
+            if (current.phase == .closing or current.phase == .retired) continue;
+            const result = try peer.poll(&self.owner.manager, self.now(), 16);
+            max_discoveries = @max(max_discoveries, result.discoveries);
+            if (result.fault != self.expected_fault[i]) return error.CallbackFailed;
         }
         try self.owner.tick(16 - max_discoveries);
         try self.drainEvents(self.accept_packets);
@@ -477,42 +242,21 @@ const Pair = struct {
     }
 
     fn openChannels(self: *Pair) !bool {
-        var all_open = true;
-        for (self.channels, 0..) |channels, peer| for (channels, 0..) |dc, channel| {
-            if (dc < 0 or !c.rtcIsOpen(dc)) {
-                all_open = false;
-                continue;
-            }
-            if (!(try self.node(peer)).session.opened[channel]) {
-                var reliability: c.rtcReliability = undefined;
-                try check(c.rtcGetDataChannelReliability(dc, &reliability));
-                const options: Session.ChannelOptions = .{
-                    .ordered = !reliability.unordered,
-                    .max_retransmits = if (reliability.unreliable and reliability.maxPacketLifeTime == 0) reliability.maxRetransmits else null,
-                    .max_packet_lifetime_ms = if (reliability.unreliable and reliability.maxPacketLifeTime > 0) reliability.maxPacketLifeTime else null,
-                };
-                try self.owner.manager.channelOpened(self.contexts[peer].session_id, @fromBackingInt(@intCast(channel)), options, self.now());
-            }
-        };
-        return all_open;
+        return (try self.node(0)).session.state == .open and (try self.node(1)).session.state == .open;
     }
 
-    fn exchangeDescription(self: *Pair, source: usize, kind: [:0]const u8) !void {
-        const context = &self.contexts[source];
-        try check(c.rtcSetLocalDescription(self.peers[source], kind));
-        const start = std.Io.Clock.awake.now(context.io);
-        while (!context.gathering_done.load(.acquire)) try pause(context.io, start);
+    fn exchangeDescription(self: *Pair, source: usize, kind: webrtc.DescriptionType) !void {
+        try self.native[source].setLocalDescription(kind);
+        const start = std.Io.Clock.awake.now(self.owner.io);
+        while (!self.native[source].gathering_done.load(.acquire)) try pause(self.owner.io, start);
         var description: [16 * 1024]u8 = undefined;
         defer @memset(&description, 0);
-        const count = c.rtcGetLocalDescription(self.peers[source], &description, description.len);
-        try check(count);
-        try expect(count > 0 and count <= description.len and description[@intCast(count - 1)] == 0);
-        const text = description[0..@intCast(count - 1)];
+        const text = try self.native[source].writeLocalDescription(&description);
         try expect(std.mem.indexOf(u8, text, "a=candidate:") != null);
         try expect(std.mem.indexOf(u8, text, "127.0.0.1") != null);
         try expect(std.mem.indexOf(u8, text, " TCP ") == null);
         try expect(std.mem.indexOf(u8, text, "a=fingerprint:") != null);
-        try check(c.rtcSetRemoteDescription(self.peers[1 - source], &description, kind));
+        try self.native[1 - source].setRemoteDescription(text, kind);
     }
 };
 
@@ -520,12 +264,12 @@ fn payload(cycle: u8, sender: u8, channel: u8, sequence: u8) [16]u8 {
     return .{ cycle, sender, channel, sequence, 0, 255, 0, 128, 1, 2, 3, 4, 5, 6, 7, 8 };
 }
 
-fn runCycle(io: std.Io, allocator: std.mem.Allocator, owner: *Owner, cycle: u8) !void {
-    var pair: Pair = .{ .owner = owner, .contexts = .{ .{ .io = io }, .{ .io = io } }, .cycle = cycle };
+fn runCycle(io: std.Io, owner: *Owner, cycle: u8) !void {
+    var pair: Pair = .{ .owner = owner, .cycle = cycle };
     defer pair.deinit() catch @panic("Native cleanup failed");
-    try pair.init(allocator);
-    try pair.exchangeDescription(0, "offer");
-    try pair.exchangeDescription(1, "answer");
+    try pair.init();
+    try pair.exchangeDescription(0, .offer);
+    try pair.exchangeDescription(1, .answer);
     const start = std.Io.Clock.awake.now(io);
     while (true) {
         try pair.drain();
@@ -535,7 +279,7 @@ fn runCycle(io: std.Io, allocator: std.mem.Allocator, owner: *Owner, cycle: u8) 
     for (0..32) |sequence| {
         for (0..2) |sender| for (0..2) |channel| {
             const bytes = payload(cycle, @intCast(sender), @intCast(channel), @intCast(sequence));
-            _ = try pair.owner.manager.sendCopy(pair.contexts[sender].session_id, @fromBackingInt(@intCast(channel)), &bytes);
+            _ = try pair.owner.manager.sendCopy(pair.ids[sender], @fromBackingInt(@intCast(channel)), &bytes);
         };
         const sent = std.Io.Clock.awake.now(io);
         while (true) {
@@ -554,31 +298,34 @@ fn runCycle(io: std.Io, allocator: std.mem.Allocator, owner: *Owner, cycle: u8) 
     try expect(pair.framed_messages == 256);
     // Cancel a real partial reliable message before its final fragment arrives.
     const partial = [_]u8{ 1, 171, 205 };
-    try check(c.rtcSendMessage(pair.channels[0][0], &partial, partial.len));
+    try check(c.rtcSendMessage(pair.native[0].channels[0], &partial, partial.len));
     const partial_start = std.Io.Clock.awake.now(io);
     while ((try pair.node(1)).session.receivers[0].used == 0) {
         try pair.drain();
         try pause(io, partial_start);
     }
     try expect((try pair.node(1)).session.receivers[0].used == 2 and pair.framed_messages == 257);
-    try (try pair.node(1)).session.close(pair.contexts[1].session_id, .requested);
+    try (try pair.node(1)).session.close(pair.ids[1], .requested);
     try expect((try pair.node(1)).session.state == .closed and (try pair.node(1)).session.receivers[0].used == 0);
     // Verify the documented deletion barrier with an actual C++ callback held
     // on a native thread. Releasing it must not depend on the deleting thread.
-    const context = &pair.contexts[1];
-    const dc = pair.channels[1][0];
+    const context = &pair.blockers[1];
+    const dc = pair.native[1].channels[0];
+    try check(c.rtcSetMessageCallback(dc, null));
+    try check(c.rtcSetClosedCallback(dc, null));
+    c.rtcSetUserPointer(dc, context);
     try check(c.rtcSetMessageCallback(dc, blockedMessage));
     const bytes = payload(cycle, 0, 0, 0);
     var segmenter = try framing.Sender.init(.reliable, &bytes, .{ .frame_bytes = 17 });
     var scratch: [17]u8 = undefined;
     const frame = (try segmenter.write(&scratch)).?;
-    try check(c.rtcSendMessage(pair.channels[0][0], frame.ptr, @intCast(frame.len)));
+    try check(c.rtcSendMessage(pair.native[0].channels[0], frame.ptr, @intCast(frame.len)));
     try expect(segmenter.commit());
     const held_start = std.Io.Clock.awake.now(io);
     while (!context.hold_entered.load(.acquire)) try pause(io, held_start);
     try pair.beginClose(1);
     defer context.hold_release.store(true, .release);
-    while (!pair.native[1].entered.load(.acquire)) try pause(io, held_start);
+    while (pair.native[1].phase.load(.acquire) != .quiescing) try pause(io, held_start);
     try std.Io.sleep(io, .fromMilliseconds(20), .awake);
     try expect(!try pair.collectFinalizers());
     var runtime: Runtime = .{};
@@ -593,7 +340,7 @@ fn runCycle(io: std.Io, allocator: std.mem.Allocator, owner: *Owner, cycle: u8) 
     try expect(!try pair.collectFinalizers());
     context.hold_release.store(true, .release);
     try pair.awaitPeer(1);
-    try expect(context.callbacks.load(.acquire) == 0 and !context.failed.load(.acquire));
+    try expect(pair.native[1].callbacks.load(.acquire) == 0 and context.callbacks.load(.acquire) == 0 and !context.failed.load(.acquire));
     const disconnect_start = std.Io.Clock.awake.now(io);
     while ((try pair.node(0)).session.state != .closed) {
         try pair.drain();
@@ -602,22 +349,22 @@ fn runCycle(io: std.Io, allocator: std.mem.Allocator, owner: *Owner, cycle: u8) 
     try expect((try pair.node(0)).session.close_reason == .transport_closed);
 }
 
-fn cancelGathering(io: std.Io, allocator: std.mem.Allocator, owner: *Owner) !void {
+fn cancelGathering(owner: *Owner) !void {
     for (0..16) |index| {
-        var pair: Pair = .{ .owner = owner, .contexts = .{ .{ .io = io }, .{ .io = io } }, .cycle = @intCast(index + 3) };
+        var pair: Pair = .{ .owner = owner, .cycle = @intCast(index + 3) };
         defer pair.deinit() catch @panic("Native cancellation cleanup failed");
-        try pair.init(allocator);
-        try check(c.rtcSetLocalDescription(pair.peers[0], "offer"));
+        try pair.init();
+        try pair.native[0].setLocalDescription(.offer);
         // Do not wait for ICE or callbacks. Teardown must retain their contexts.
     }
 }
 
-fn gracefulDisconnect(io: std.Io, allocator: std.mem.Allocator, owner: *Owner) !void {
-    var pair: Pair = .{ .owner = owner, .contexts = .{ .{ .io = io }, .{ .io = io } }, .cycle = 21 };
+fn gracefulDisconnect(io: std.Io, owner: *Owner) !void {
+    var pair: Pair = .{ .owner = owner, .cycle = 21 };
     defer pair.deinit() catch @panic("Native graceful cleanup failed");
-    try pair.init(allocator);
-    try pair.exchangeDescription(0, "offer");
-    try pair.exchangeDescription(1, "answer");
+    try pair.init();
+    try pair.exchangeDescription(0, .offer);
+    try pair.exchangeDescription(1, .answer);
     const start = std.Io.Clock.awake.now(io);
     while (true) {
         try pair.drain();
@@ -626,11 +373,11 @@ fn gracefulDisconnect(io: std.Io, allocator: std.mem.Allocator, owner: *Owner) !
     }
     try pair.drain();
     const sender = try pair.node(0);
-    const id = pair.contexts[0].session_id;
+    const id = pair.ids[0];
     pair.accept_packets = false;
     _ = try pair.owner.manager.sendCopy(id, .reliable, &payload(pair.cycle, 0, 0, 0));
     const paused_start = std.Io.Clock.awake.now(io);
-    while (pair.receipt_count[0] != 1 or (try pair.contexts[1].inbox.status()).outstanding != 3) {
+    while (pair.receipt_count[0] != 1 or (try pair.native[1].inbox.status()).outstanding != 3) {
         try pair.drain();
         try pause(io, paused_start);
     }
@@ -656,87 +403,40 @@ fn gracefulDisconnect(io: std.Io, allocator: std.mem.Allocator, owner: *Owner) !
     graceful_closes += 1;
 }
 
-fn cleanupTestContext(context: *Context) void {
-    context.closing.store(true, .release);
-    context.inbox.stop(context.session_id, .requested) catch unreachable;
-    _ = context.inbox.discard(16) catch unreachable;
-    context.inbox.deinit();
-    context.events.close(context.io);
-}
-
-fn callbackBoundaries(io: std.Io, allocator: std.mem.Allocator) !void {
-    var context: Context = .{ .io = io };
-    try context.init(allocator, null);
-    defer cleanupTestContext(&context);
-    const binding = &context.channel_contexts[0];
-    binding.id = 7;
-    var bytes: [17]u8 = undefined;
-    bytes[0] = 0;
-    @memcpy(bytes[1..], &payload(1, 0, 0, 0));
-    for (0..16) |_| message(7, &bytes, bytes.len, binding);
-    @memset(&bytes, 42);
-    // Stop survives a full queue and a later native close callback.
-    message(7, &bytes, bytes.len, binding);
-    closed(7, binding);
-    try expect((try context.inbox.status()).reason == .queue_full);
-    for (0..16) |_| {
-        var lease = (try context.inbox.receive()).?;
-        defer lease.deinit();
-        try expect(lease.bytes().len == 17 and lease.bytes()[0] == 0);
-        try expect(std.mem.eql(u8, lease.bytes()[1..], &payload(1, 0, 0, 0)));
-    }
-    try expect((try context.inbox.status()).outstanding == 0);
-    for ([_]c_int{ -1, 17, 18, 0, 1 }, 0..) |size, index| {
-        var invalid: Context = .{ .io = io };
-        try invalid.init(allocator, null);
-        defer cleanupTestContext(&invalid);
-        invalid.channel_contexts[0].id = 7;
-        message(7, if (index == 1) null else &bytes, size, &invalid.channel_contexts[0]);
-        try expect((try invalid.inbox.status()).reason == .invalid_frame);
-        try expect((try invalid.inbox.status()).outstanding == 0);
-        try expect(invalid.callbacks.load(.acquire) == 0);
-    }
-    var wrong_id: Context = .{ .io = io };
-    try wrong_id.init(allocator, null);
-    defer cleanupTestContext(&wrong_id);
-    wrong_id.channel_contexts[0].id = 7;
-    message(8, &bytes, bytes.len, &wrong_id.channel_contexts[0]);
-    try expect(wrong_id.failed.load(.acquire));
-    try expect((try wrong_id.inbox.status()).reason == .delivery_failure);
-    try expect((try wrong_id.inbox.status()).outstanding == 0);
-}
-
-fn incomingChannelOverflow(io: std.Io, allocator: std.mem.Allocator, owner: *Owner) !void {
-    var pair: Pair = .{ .owner = owner, .contexts = .{ .{ .io = io }, .{ .io = io } }, .cycle = 20 };
+fn incomingChannelOverflow(io: std.Io, owner: *Owner) !void {
+    var pair: Pair = .{ .owner = owner, .cycle = 20 };
     defer pair.deinit() catch @panic("Native overflow cleanup failed");
-    try pair.init(allocator);
-    try pair.exchangeDescription(0, "offer");
-    try pair.exchangeDescription(1, "answer");
+    try pair.init();
+    try pair.exchangeDescription(0, .offer);
+    try pair.exchangeDescription(1, .answer);
     const start = std.Io.Clock.awake.now(io);
     while (true) {
         try pair.drain();
         if (try pair.openChannels()) break;
         try pause(io, start);
     }
-    pair.expected_callback_failure[1] = true;
-    for (&pair.extra[0], 0..) |*dc, index| {
-        dc.* = c.rtcCreateDataChannel(pair.peers[0], "ExtraDataChannel");
-        pair.native[0].extra[index] = dc.*;
-        try check(dc.*);
+    pair.expected_fault[1] = .discovery_capacity;
+    for (0..5) |_| {
+        const dc = c.rtcCreateDataChannel(pair.native[0].peer, "ExtraDataChannel");
+        try check(dc);
+        var pending: ?c_int = dc;
+        try pair.native[0].retainChannel(&pending);
     }
-    const receiver = &pair.contexts[1];
+    const receiver = &pair.native[1];
     const overflow_start = std.Io.Clock.awake.now(io);
     while (receiver.rejected_channels.load(.acquire) == 0) try pause(io, overflow_start);
-    try expect(receiver.rejected_channels.load(.acquire) == 1);
-    const rejected = receiver.last_rejected.load(.acquire);
-    try expect(rejected >= 0 and c.rtcGetDataChannelStream(rejected) < 0);
+    try expect(receiver.rejected_channels.load(.acquire) == 1 and receiver.unsubscribe_failures.load(.acquire) == 0);
+    const rejected = receiver.overflow.load(.acquire);
+    var label: [64]u8 = undefined;
+    try expect(rejected >= 0 and c.rtcGetDataChannelLabel(rejected, &label, label.len) > 0);
     try pair.owner.tick(0);
     try expect((try pair.node(1)).session.close_reason == .inbound_failure);
     try expect((try receiver.inbox.status()).outstanding == 0);
+    try pair.awaitPeer(1);
+    try expect(c.rtcGetDataChannelLabel(rejected, &label, label.len) < 0);
 }
 
 fn runChecks(io: std.Io, allocator: std.mem.Allocator) !void {
-    try callbackBoundaries(io, allocator);
     var owner: Owner = .{ .io = io, .clock_start = std.Io.Clock.awake.now(io) };
     try owner.manager.init(allocator, io, 1, .{ .connections = 4, .payload_bytes = 4 * 416 });
     defer {
@@ -744,13 +444,13 @@ fn runChecks(io: std.Io, allocator: std.mem.Allocator) !void {
         owner.manager.join() catch @panic("Manager still owns native contexts");
         owner.manager.deinit() catch @panic("Manager deinit failed");
     }
-    for (0..3) |cycle| runCycle(io, allocator, &owner, @intCast(cycle)) catch |err| {
+    for (0..3) |cycle| runCycle(io, &owner, @intCast(cycle)) catch |err| {
         std.debug.print("transport cycle {d} failed: {s}\n", .{ cycle, @errorName(err) });
         return err;
     };
-    try cancelGathering(io, allocator, &owner);
-    try incomingChannelOverflow(io, allocator, &owner);
-    try gracefulDisconnect(io, allocator, &owner);
+    try cancelGathering(&owner);
+    try incomingChannelOverflow(io, &owner);
+    try gracefulDisconnect(io, &owner);
     try expect(finalized_peers == 42 and owner_ticks == 9 and graceful_closes == 1);
     try expect(backpressure_checks == 1 and reused_connection_slots == 40);
     try expect(owner.manager.records.count == 0 and owner.manager.reserved_bytes == 0);
@@ -772,7 +472,7 @@ pub fn main(init: std.process.Init) !u8 {
     if (!passed) return 1;
     var buffer: [256]u8 = undefined;
     var output = std.Io.File.Writer.init(.stdout(), init.io, &buffer);
-    try output.interface.writeAll("{\"cycles\":3,\"binary_messages\":384,\"drained_receipts\":384,\"framed_messages\":771,\"cancelled_assemblies\":3,\"native_disconnects\":3,\"deletion_barriers\":3,\"cancelled_offers\":16,\"callback_boundary_checks\":7,\"incoming_channel_overflows\":1,\"zig_allocation_leaks\":0,\"finalized_peers\":42,\"owner_ticks_while_closing\":9,\"graceful_closes\":1,\"backpressure_checks\":1,\"reused_connection_slots\":40}\n");
+    try output.interface.writeAll("{\"cycles\":3,\"binary_messages\":384,\"drained_receipts\":384,\"framed_messages\":771,\"cancelled_assemblies\":3,\"native_disconnects\":3,\"deletion_barriers\":3,\"cancelled_offers\":16,\"incoming_channel_overflows\":1,\"zig_allocation_leaks\":0,\"finalized_peers\":42,\"owner_ticks_while_closing\":9,\"graceful_closes\":1,\"backpressure_checks\":1,\"reused_connection_slots\":40}\n");
     try output.interface.flush();
     return 0;
 }

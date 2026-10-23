@@ -153,6 +153,10 @@ pub fn Manager(comptime send_capacity: usize, comptime receive_capacity: usize, 
             return (try self.get(id)).sendCopy(self.allocator, id, channel, bytes);
         }
 
+        pub fn limitSendFrame(self: *Self, id: Session.Id, channel: framing.Channel, maximum: usize) !usize {
+            return (try self.get(id)).limitSendFrame(id, channel, maximum);
+        }
+
         pub fn sendOwned(self: *Self, id: Session.Id, channel: framing.Channel, pending: *?OwnedBytes) !outbound.Ticket {
             const node = try self.get(id);
             if (self.overlapsStorage(std.mem.asBytes(pending))) return error.AliasedPayload;

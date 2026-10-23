@@ -186,7 +186,7 @@ def main() -> None:
                     "drained_receipts": 384,
                     "framed_messages": 771, "cancelled_assemblies": 3,
                     "native_disconnects": 3,
-                    "cancelled_offers": 16, "callback_boundary_checks": 7,
+                    "cancelled_offers": 16,
                     "incoming_channel_overflows": 1, "zig_allocation_leaks": 0,
                     "finalized_peers": 42, "owner_ticks_while_closing": 9,
                     "graceful_closes": 1, "backpressure_checks": 1,
@@ -194,11 +194,15 @@ def main() -> None:
         summaries = [json.loads(line) for line in probe_output.splitlines() if line.startswith('{"cycles":')]
         if summaries != [expected]:
             raise RuntimeError("Zig native probe did not report its expected checks")
+        if re.search(r"\b10/10 tests passed\b", probe_output) is None:
+            raise RuntimeError("Native adapter boundary tests did not run completely")
+        print(f"Native adapter tests passed: 10 ({optimize})", flush=True)
     library = prefix / ("bin/datachannel.dll" if system == "Windows" else "lib/libdatachannel.so")
     evidence = {"system": system, "zig": required_zig, "sources": manifest,
                 "cmake": run([cmake, "--version"]).splitlines()[0], "generator": generator[1],
                 "library_sha256": hashlib.sha256(library.read_bytes()).hexdigest(),
-                "upstream_tests": int(match[1]), "zig_probes": ["debug", "safe"]}
+                "upstream_tests": int(match[1]), "native_adapter_tests": 10,
+                "zig_probes": ["debug", "safe"]}
     (output / "evidence.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     print("Native transport probe passed. No Minecraft client was tested.", flush=True)
 

@@ -3,7 +3,8 @@
 The foundation uses Zig 0.17.0 and the Zig standard library. There are no external
 Zig packages or runtime libraries in the server. The build rejects other compiler
 versions. The optional [native transport probe](native-transport.md) builds a
-development-only C API candidate with separately pinned source dependencies.
+C API candidate with separately pinned source dependencies and a shared adapter
+module. It remains separate from the default server executable.
 
 Behavior ports use [Axolotl-PM's default branch](https://github.com/axolotl-pm/PocketMine-MP/tree/stable)
 as the maintained PocketMine baseline. Resolve the latest branch heads before
@@ -52,6 +53,8 @@ zig build test-compile -Dtarget=x86_64-linux-musl -Doptimize=safe
   bounded event pulls and graceful disconnect with scoped finalizer routing.
   `transport/Manager.zig` owns a persistent connection pool and reaper, reserves
   aggregate application-payload capacity and schedules bounded round-robin work.
+  The optional `webrtc` module binds native callbacks, negotiated send limits and
+  cleanup into that manager, using the same adapter as the loopback probe.
   See [transport contracts](transport.md)
   for limits, ownership, error policy and oracle evidence.
 - `foundation/binary.zig` borrows input and output buffers. Failed reads restore

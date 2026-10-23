@@ -222,6 +222,10 @@ drain receipts are observed before processing native termination. These control
 observations make at most six provider queries and `2 * send_capacity` scalar
 completions in addition to the sender budget. They run even with zero send steps.
 Provider calls must remain synchronous and must not wait for owner work.
+During negotiation, `limitSendFrame` may lower each channel's sender frame
+ceiling before application admission. It cannot raise a configured ceiling or
+change an open connection's queued work. Providers use it for negotiated native
+message limits before reporting channel opens.
 
 Pull `nextEvent` only when the application can accept it. Events prioritize open,
 send outcomes, logical close, cleanup failure and final retirement before input.

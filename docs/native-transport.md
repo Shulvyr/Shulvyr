@@ -1,8 +1,9 @@
-# Native transport probe
+# Native WebRTC adapter and probe
 
-The optional probe exercises libdatachannel's C API from Zig. It is development
-tooling, separate from the server executable. It establishes no Minecraft client
-compatibility and implements no signaling endpoint, authentication or game packets.
+The optional `webrtc` module adapts libdatachannel's C API to the core connection
+manager. The loopback probe uses that same adapter. The standalone server still
+has no native runtime dependency, signaling endpoint, authentication or game
+packets. Native integration remains a candidate pending the production gates below.
 
 ## Reference and scope
 
@@ -26,6 +27,58 @@ working connection from a released client.
 The [registry snapshot](registries.md#data-provenance) is also separate. Its
 source labels protocol 2168. It must not be treated as a complete protocol 2193
 data set without checking the required packet definitions and data changes.
+
+## Adapter contract
+
+The optional build module lives in [webrtc.zig](../src/transport/webrtc.zig).
+`Peer(receive_capacity, discovery_capacity)` keeps one native peer, its channel
+bindings and a bounded discovery queue at a fixed address. It borrows the scoped
+manager inbox. `bind` transfers the sink and finalizer into the manager before
+`start` creates native objects. A failed start still requires manager-driven
+finalization. Keep the context alive through its returned finalized task.
+
+The owner calls `poll` with a discovery quota before updating the manager. It
+validates exact labels, empty protocol and channel reliability before reporting
+channel opens. Callback failures use sticky inbox stop reasons, preserving drain
+receipts before logical closure. Polling and description operations refuse native
+access once the core has submitted cleanup, including before the worker starts.
+Callbacks copy only admitted frames and never access owner session state.
+
+The local native message ceiling covers both configured send/receive frames and
+the two channels' DCEP control messages. Even a 17-byte application-frame policy
+needs the 33-byte OPEN message for `UnreliableDataChannel`. The receive callback
+still enforces its own application limit. Before publishing an open channel,
+the adapter lowers its outbox frame ceiling to `rtcMaxMessageSize` when needed.
+It never raises operator limits or changes queued messages. Tests negotiate a
+128-byte sender ceiling down to a 64-byte peer limit and deliver a 64-byte
+payload in two fragments through the real native library.
+The C API reports zero-valued lifetime and retransmission options without their
+optional-field presence. It cannot distinguish a zero-lifetime channel from
+zero retransmissions in every remote DCEP case. Strict rejection of that
+ambiguity remains a provider gate.
+
+Description APIs use full ICE, bounded caller storage and one local/remote
+description exchange. Remote input rejects empty, oversized and embedded-null
+strings before native parsing. Local output rejects overlap with the context,
+connection metadata or its receive buffers. SDP contains ICE credentials and
+must stay out of logs. The caller validates identity and supplies stripped SDP
+before starting real negotiation. This adapter does not implement identity policy.
+
+Only the reaper worker deletes native channels and peers. It unregisters peer
+callbacks, drains discovered and overflow handles, and preserves each handle
+until its deletion succeeds. Failed cleanup retains the context for retry.
+Successful finalization requires callback quiescence. Then the owner may call
+`deinit` and retire the core connection. Global cleanup remains a separate
+management operation with the limitation described below.
+
+The first discovery overflow retains its handle and unsubscribes the native
+incoming-channel callback. The pinned implementation permits this through its
+recursive callback mutex. If native unsubscription fails and more handles arrive
+than can be retained, `untracked_handles` latches. Finalization then always fails
+and the context cannot be released. The backend must stop admission and recover
+at process level. Native resource caps and this exceptional recovery policy
+remain production gates. `retainChannel` is a trusted integration escape hatch
+for transferring additional same-peer handles into bounded cleanup storage.
 
 ## Reproduce
 
@@ -64,7 +117,9 @@ cryptographic configuration with the DTLS-SRTP extension enabled. The build
 retains its warning checks. This is not a reduced or audited production TLS
 configuration.
 
-The script runs the Zig probe in debug and safe modes. To repeat a probe after
+The script runs ten native adapter tests and the Zig probe in debug and safe
+modes. It checks the adapter test count as well as the probe's result. Native
+tests run each time, including after cached compilation. To repeat them after
 building the native prefix, supply its absolute path:
 
 ```sh
@@ -93,13 +148,15 @@ result validation before owner retirement. While a real callback is held during
 deletion, the owner completes three logical ticks and manager updates per cycle
 and observes no finalizer completion. After release, deletion finishes and the
 remote peer's closure is observed. Another 16 offers are closed without waiting
-for gathering. Callback boundary checks cover immutable copies,
+for gathering. Separate adapter tests cover immutable callback copies,
 queue saturation, text, null buffers, empty/header-only and oversize input,
 plus a mismatched native channel ID. A separate connected pair opens five extra
 channels against a four-slot discovery queue. The overflowing channel has no
-callbacks installed and is deleted in its discovery callback. Its old handle
-must reject a query, while the owner observes the sticky failure and closes the
-logical session. The queued channel handles are deleted during teardown.
+application callbacks installed. Its handle stays owned in an emergency slot
+while that peer's discovery callback unsubscribes itself. The owner observes
+the sticky failure and closes the logical session. The management worker
+deletes the overflow and queued handles. The old overflow handle must reject
+queries after finalization.
 Each wait has a deadline. The Python runner also bounds subprocess runtime.
 The probe uses a separate thread-safe Zig allocator and fails on leaked probe
 allocations in both build modes. This does not measure native C++ allocations.

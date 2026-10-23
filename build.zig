@@ -67,11 +67,26 @@ pub fn build(b: *std.Build) void {
     const transport_test = b.step("test-native-transport", "Run the optional native WebRTC C API probe");
     if (b.option([]const u8, "native-transport-prefix", "Prefix produced by tools/native-transport/build_probe.py")) |prefix| {
         const api = b.addTranslateC(.{
-            .root_source_file = b.path("tools/native-transport/rtc_api.h"),
+            .root_source_file = b.path("src/transport/webrtc/rtc_api.h"),
             .target = target,
             .optimize = optimize,
         });
         api.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{ prefix, "include" }) });
+        const rtc = api.createModule();
+        const webrtc = b.addModule("webrtc", .{
+            .root_source_file = b.path("src/transport/webrtc.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+            .imports = &.{
+                .{ .name = "shulvyr", .module = core },
+                .{ .name = "rtc", .module = rtc },
+            },
+        });
+        const library_path = b.pathJoin(&.{ prefix, "lib" });
+        webrtc.addLibraryPath(.{ .cwd_relative = library_path });
+        webrtc.addRPath(.{ .cwd_relative = library_path });
+        webrtc.linkSystemLibrary("datachannel", .{});
         const probe_module = b.createModule(.{
             .root_source_file = b.path("tools/native-transport/probe.zig"),
             .target = target,
@@ -79,22 +94,24 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
             .imports = &.{
                 .{ .name = "shulvyr", .module = core },
-                .{ .name = "rtc", .module = api.createModule() },
+                .{ .name = "webrtc", .module = webrtc },
             },
         });
-        probe_module.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{ prefix, "include" }) });
-        const library_path = b.pathJoin(&.{ prefix, "lib" });
-        probe_module.addLibraryPath(.{ .cwd_relative = library_path });
-        probe_module.addRPath(.{ .cwd_relative = library_path });
-        probe_module.linkSystemLibrary("datachannel", .{});
         const probe = b.addExecutable(.{ .name = "transport-probe", .root_module = probe_module });
         const run_probe = b.addRunArtifact(probe);
+        const native_tests = b.addTest(.{ .root_module = webrtc, .filters = &.{"WebRTC"} });
+        const run_native_tests = b.addRunArtifact(native_tests);
+        run_native_tests.has_side_effects = true;
         if (target.result.os.tag == .windows) {
             run_probe.setEnvironmentVariable("PATH", b.fmt("{s};{s}", .{
                 b.pathJoin(&.{ prefix, "bin" }), b.graph.environ_map.get("PATH") orelse "",
             }));
+            run_native_tests.setEnvironmentVariable("PATH", b.fmt("{s};{s}", .{
+                b.pathJoin(&.{ prefix, "bin" }), b.graph.environ_map.get("PATH") orelse "",
+            }));
         }
         transport_test.dependOn(&run_probe.step);
+        transport_test.dependOn(&run_native_tests.step);
     } else {
         transport_test.dependOn(&b.addFail("Run tools/native-transport/build_probe.py and supply -Dnative-transport-prefix").step);
     }

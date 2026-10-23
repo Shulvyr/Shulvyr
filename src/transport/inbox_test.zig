@@ -11,6 +11,17 @@ const expectError = std.testing.expectError;
 const id: Session.Id = .{ .owner = 7, .index = 0, .generation = 1 };
 const config: incoming.Config = .{ .frame_bytes = 5, .payload_bytes = 10 };
 
+test "provider channel rejection retains its specific session close reason" {
+    var inbox: Inbox(2) = .{};
+    try inbox.init(io, allocator, id, config);
+    defer cleanup(&inbox);
+    var fixture: Fixture = .{};
+    var session = try fixture.session(false);
+    try inbox.stop(id, .invalid_channel);
+    try expect(try inbox.applyStop(&session));
+    try equal(Session.CloseReason.invalid_channel, session.close_reason.?);
+}
+
 const Fixture = struct {
     reliable: [32]u8 = @splat(0),
     unreliable: [4]u8 = @splat(0),

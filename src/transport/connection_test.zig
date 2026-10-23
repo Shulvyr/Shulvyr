@@ -419,6 +419,23 @@ test "connection allocation faults retain no queued snapshots or reaper reservat
     try std.testing.checkAllAllocationFailures(allocator, allocationCase, .{});
 }
 
+test "provider frame negotiation only lowers limits before application admission" {
+    var fixture: Fixture = .{};
+    try fixture.init(allocator, true, false);
+    defer fixture.cleanup();
+    try equal(@as(usize, 4), try fixture.node.limitSendFrame(id, .reliable, 4));
+    try equal(@as(usize, 4), try fixture.node.limitSendFrame(id, .reliable, 64));
+    try expectError(error.InvalidLimits, fixture.node.limitSendFrame(id, .reliable, 1));
+    var stale = id;
+    stale.generation += 1;
+    try expectError(error.StaleSession, fixture.node.limitSendFrame(stale, .unreliable, 2));
+    try equal(@as(usize, 5), fixture.node.outbox.config.limits[1].frame_bytes);
+    try fixture.node.channelOpened(id, .reliable, .required(.reliable), 0);
+    try fixture.node.channelOpened(id, .unreliable, .required(.unreliable), 0);
+    try expectError(error.NotNegotiating, fixture.node.limitSendFrame(id, .reliable, 2));
+    try equal(@as(usize, 4), fixture.node.outbox.config.limits[0].frame_bytes);
+}
+
 test "graceful lifecycle and receipt ordering match the upstream public Session oracle" {
     const Oracle = struct {
         oracle: std.json.Value,

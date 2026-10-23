@@ -129,6 +129,18 @@ pub fn Connection(comptime send_capacity: usize, comptime receive_capacity: usiz
             }
         }
 
+        /// The provider may lower a frame ceiling during negotiation, before
+        /// any application send is admitted. Existing policy ceilings never grow.
+        pub fn limitSendFrame(self: *Self, id: Session.Id, channel: framing.Channel, maximum: usize) !usize {
+            try self.identity(id);
+            if (self.phase != .negotiating) return error.NotNegotiating;
+            if (maximum < 2) return error.InvalidLimits;
+            if (self.outbox.outstanding != 0) return error.PendingSends;
+            const limits = &self.outbox.config.limits[@backingInt(channel)];
+            limits.frame_bytes = @min(limits.frame_bytes, maximum);
+            return limits.frame_bytes;
+        }
+
         fn sendable(self: *Self, id: Session.Id) !void {
             try self.identity(id);
             if (self.phase == .draining) return error.Draining;

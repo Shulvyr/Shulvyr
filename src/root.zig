@@ -34,6 +34,7 @@ pub const Connection = @import("transport/Connection.zig").Connection;
 pub const connection = @import("transport/Connection.zig");
 pub const ConnectionManager = @import("transport/Manager.zig").Manager;
 pub const connections = @import("transport/Manager.zig");
+pub const transport_buffers = @import("transport/buffer.zig");
 pub const cli = @import("operator/cli.zig");
 
 test {
