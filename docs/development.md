@@ -98,6 +98,11 @@ contracts and tests. See its [remaining production gates](native-transport.md).
   SDP fingerprint against the configured full-certificate digest. The optional
   native peer imports that certificate and signs its gathered SDP through these
   contracts. See [DTLS certificates](dtls-certificates.md).
+- `transport/identity/ServiceKeys.zig` owns bounded caller-authenticated JWKS
+  snapshots. `RsaPublicKey.zig` uses the pinned standard RSA verifier and
+  `ServiceIdentity.zig` verifies the service token and SDP proof together.
+  Results own their subject and client key. Authority acquisition, admission and
+  later game-login binding remain separate. See [service identity](service-identity.md).
 - `transport/framing.zig` splits and reassembles bounded NetherNet messages.
   `transport/Session.zig` validates callback identities, channel settings and
   lifecycle transitions on the owner. `transport/Outbox.zig` owns outbound

@@ -29,6 +29,40 @@ pub fn run(arena: Allocator, io: std.Io, output: *std.Io.Writer) !void {
     try output.writeAll("Verified 12 identity keys, 26 assertions and 15 timestamp oracle cases\n");
     try checkIssuer(arena, try load(arena, io, .issuer));
     try output.writeAll("Verified 8 independent identity issuance oracle cases\n");
+    try checkService(arena, io);
+    try output.writeAll("Verified 26 independent CNG service identity cases\n");
+}
+
+fn checkService(arena: Allocator, io: std.Io) !void {
+    const manifest = try references.parse(arena, try read(arena, io, "src/transport/fixtures/service-manifest.json"));
+    try require(try number(try field(manifest, "schema")) == 1);
+    try same(try field(manifest, "producer"), "Windows CNG");
+    try same(try field(manifest, "zig"), "0.17.0");
+    const generator = try text(try field(manifest, "generator_sha256"));
+    const sources = try references.Snapshot.load(arena, io);
+    try sources.expect("tools/generate_service_fixtures.zig", generator);
+    const raw = try read(arena, io, "src/transport/fixtures/service-identity.json");
+    try require(raw.len == try number(try field(manifest, "bytes")));
+    try digest(raw, try text(try field(manifest, "sha256")));
+    const fixture = try references.parse(arena, raw);
+    const producer = try field(fixture, "producer");
+    try same(try field(producer, "name"), "Windows CNG");
+    try same(try field(producer, "zig"), "0.17.0");
+    try same(try field(producer, "source_path"), "tools/generate_service_fixtures.zig");
+    try same(try field(producer, "source_sha256"), generator);
+    const verified = try field(producer, "signatures_verified_by_producer");
+    try require(verified == .bool and verified.bool);
+    const cases = try items(try field(fixture, "cases"));
+    try unique(cases, 26);
+    for (cases) |case| {
+        const attribute = try text(try field(case, "attribute"));
+        const sdp = try text(try field(case, "sdp"));
+        try require(attribute.len > 0 and attribute.len <= 16 * 1024 and sdp.len <= 16 * 1024);
+        const bits = try number(try field(case, "key_bits"));
+        try require(bits == 2048 or bits == 3072 or bits == 4096);
+        const wanted = try field(case, "error");
+        try require(wanted == .null or wanted == .string);
+    }
 }
 
 pub fn require(condition: bool) !void {

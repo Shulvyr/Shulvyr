@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "producer": "Windows CNG",
+  "zig": "0.17.0",
+  "generator_sha256": "bfad3b433e47b29428eba62aee89f30f2394ce231166730172e6d377742b35f0",
+  "cases": 26,
+  "bytes": 93128,
+  "sha256": "cfa995449d68e518a342739605a08687c202f20b14d31274086175fcec292993"
+}

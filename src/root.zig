@@ -47,6 +47,9 @@ pub const IdentityIssuer = @import("transport/identity/Issuer.zig");
 pub const SignedDescription = @import("transport/identity/SignedDescription.zig");
 pub const DtlsCertificate = @import("transport/identity/DtlsCertificate.zig");
 pub const CertificateBinding = @import("transport/sdp/CertificateBinding.zig");
+pub const ServiceRsaKey = @import("transport/identity/RsaPublicKey.zig");
+pub const ServiceKeys = @import("transport/identity/ServiceKeys.zig");
+pub const ServiceIdentity = @import("transport/identity/ServiceIdentity.zig");
 pub const cli = @import("operator/cli.zig");
 pub const identity_cli = @import("operator/identity.zig");
 
@@ -69,4 +72,5 @@ test {
     _ = @import("transport/issuer_test.zig");
     _ = @import("transport/key_store_test.zig");
     _ = @import("transport/certificate_test.zig");
+    _ = @import("transport/service_identity_test.zig");
 }

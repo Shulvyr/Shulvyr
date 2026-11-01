@@ -9,8 +9,10 @@ SubjectPublicKeyInfo. No additional runtime library is required.
 server assertions and `SignedDescription` binds them to local SDP fingerprints.
 [Operator key storage](operator-keys.md) persists keys and supplies explicit
 initialization, inspection, rotation, recovery and backup commands. These
-primitives do not admit a player or validate a Minecraft service token. The
-server runner has no identity negotiation flow yet.
+primitives do not admit a player. The separate
+[service verifier](service-identity.md) checks RS256 tokens and their SDP proofs
+with caller-authenticated keys. The server runner has no identity negotiation
+flow yet.
 
 ## Ownership and resource limits
 
@@ -46,7 +48,8 @@ claims remain untrusted data. No field triggers a URL fetch or key lookup.
   space. This proves possession of that key for those payload bytes.
 - `token.verifyEs384` checks the JWT with an explicitly supplied P-384 key.
   Passing its own `cpk` checks a self-signature. It does not establish a trusted
-  issuer or authorize claims. RS256 service-token verification is not implemented.
+  issuer or authorize claims. Use `ServiceIdentity` and a trusted `ServiceKeys`
+  snapshot for the separate RS256 service-token and fingerprint checks.
 - `token.checkTimestamps` uses caller-supplied Unix time and nonnegative leeway.
   It follows the source's optional `exp`, `nbf` and `iat` checks, including
   truncation of finite fractional timestamps toward zero. Arithmetic uses i128
